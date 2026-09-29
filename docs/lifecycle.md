@@ -1,5 +1,7 @@
 # Lifecycle
 
+> **PROVISIONAL — pending [cross-registry reconciliation](cross-registry-reconciliation.md).** The candidate-as-Git-branch model (`candidate` cannot merge) is provisional; other registries may hold candidates in registry data.
+
 ```
 draft ──► candidate ──► active ──► deprecated ──► retired
   │           │           ▲            │

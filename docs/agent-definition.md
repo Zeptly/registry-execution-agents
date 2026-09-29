@@ -1,5 +1,7 @@
 # Execution Agent definition reference
 
+> **PROVISIONAL — pending [cross-registry reconciliation](cross-registry-reconciliation.md).** Identifier namespaces (`exec.`, `skill.`, `cap.`, `tool.`, `model.`, `secret.`) are provisional.
+
 Authoritative machine schema: [`schemas/execution-agent.schema.json`](../schemas/execution-agent.schema.json). This page explains intent. Unknown fields are rejected; use `extensions` (`x-` keys) for experiments — runtimes must ignore them.
 
 | Section | Meaning |

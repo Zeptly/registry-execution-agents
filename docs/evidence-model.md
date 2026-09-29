@@ -1,5 +1,7 @@
 # Evidence & provenance model
 
+> **PROVISIONAL — pending [cross-registry reconciliation](cross-registry-reconciliation.md).** The URI schemes are provisional. The principle — tapes/sessions stay outside Git; definitions carry only immutable, verifiable references — is NOT provisional.
+
 **Principle:** execution produces evidence; evidence may motivate a candidate; a candidate is only ever a proposal. Large or sensitive runtime data stays out of Git.
 
 ## What lives where

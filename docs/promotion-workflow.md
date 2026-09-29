@@ -1,5 +1,7 @@
 # Change & promotion workflow
 
+> **PROVISIONAL — pending [cross-registry reconciliation](cross-registry-reconciliation.md).** Branch-based candidates, release recording and tag creation are provisional.
+
 ## New agent
 1. Copy `templates/agent/` → `agents/<slug>/`; set `status: draft`, version `0.1.0`.
 2. `npm run validate`; open PR. Merge as `draft` (incubation) or continue to promotion below.
@@ -26,6 +28,6 @@
 PR that sets `status: deprecated` (with `lifecycle.status_reason`, optional `replaced_by`, `sunset_at`), later `retired`. No version bump required.
 
 ## Non-negotiables
-- No direct pushes to `main`; branch protection requires `validate` and `merge-gate`.
+- Intended: no direct pushes to `main`, with `validate` and `merge-gate` as required checks. Enabling this is a repository-owner action and is **not** configured by this repo (see `docs/security.md`).
 - Nothing (including agents) writes to canonical definitions except via reviewed PR.
 - Never edit a released version; never edit ledger entries.

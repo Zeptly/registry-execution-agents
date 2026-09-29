@@ -1,5 +1,7 @@
 # Architecture
 
+> **PROVISIONAL — pending [cross-registry reconciliation](cross-registry-reconciliation.md).** The head-definition + release-ledger model (A), candidates-as-branches (B), `exec.<slug>@version` identity and `skill.*`/`cap.*`/`tool.*`/`model.*` namespaces (C) are working defaults, not Zeptly-wide conventions.
+
 ## Boundaries
 
 ```

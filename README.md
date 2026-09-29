@@ -5,6 +5,8 @@ The canonical, Git-native registry of **Zeptly Execution Agent** definitions.
 > This registry defines **what** an Execution Agent is. `Zeptly/runtime-trigger` (on Trigger.dev) decides **how** it runs.
 > Git is the authoritative ledger; Trigger.dev, Cortex and telemetry stores are never the source of truth for a definition.
 
+> **Status: provisional.** Several architectural choices are working defaults pending [cross-registry reconciliation](docs/cross-registry-reconciliation.md) with `registry-skills`, `registry-qb-agents` and `runtime-trigger`.
+
 Scope: Execution Agents only. Tiny Agents, Timesavers, QB Agents and Zep are out of scope.
 
 ## What's here
@@ -48,3 +50,4 @@ Add or change an agent: see [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/promoti
 - [Evidence model](docs/evidence-model.md) · [Promotion workflow](docs/promotion-workflow.md)
 - [Security](docs/security.md) · [Compatibility & interoperability](docs/compatibility-and-interop.md)
 - [Decisions & open questions](docs/decisions.md)
+- [Cross-Registry Reconciliation Required](docs/cross-registry-reconciliation.md)

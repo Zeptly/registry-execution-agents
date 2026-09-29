@@ -1,5 +1,7 @@
 # Versioning
 
+> **PROVISIONAL — pending [cross-registry reconciliation](cross-registry-reconciliation.md).** Identity/tag syntax (`exec.<slug>@version`), the mutable-head + ledger model and the release-tag convention are provisional. The digest-based released-definition immutability invariant is NOT provisional.
+
 ## Identity and references
 
 - **ID** `exec.<slug>` is permanent. Retire, don't rename or delete.

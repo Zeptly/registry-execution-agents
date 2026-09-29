@@ -17,5 +17,10 @@
 ## Permissions
 Scopes are `domain:read|write|admin`. Definitions *declare* what they need; enforcement is the runtime's and gateways' job (least privilege, workspace-scoped). `side_effects` is the max class across tools: `none` / `reversible` / `irreversible`. Irreversible ⇒ per-action approval.
 
-## Repository hygiene
-Enable branch protection (required checks: `validate`, `merge-gate`; CODEOWNERS review; no force-push; protected `exec.*@*` tags). Enable secret scanning and push protection. Report vulnerabilities per [SECURITY.md](../SECURITY.md).
+## Repository settings (owner action — NOT configured by this repository)
+This repo does not configure or assume any GitHub settings. Repository owners should decide whether to apply them. The CI checks this registry provides, and which any branch protection/ruleset should require, are:
+
+- `validate` (workflow `validate`, job `validate`) — schema, semantic validation, tests, change checks vs base.
+- `merge-gate` (workflow `validate`, job `merge-gate`) — blocks `status: candidate` from merging.
+
+Also recommended (owner decisions): CODEOWNERS review with real teams (current handles are placeholders), no force-push to `main`, protection for `exec.*@*` tags, secret scanning and push protection. Report vulnerabilities per [SECURITY.md](../SECURITY.md).

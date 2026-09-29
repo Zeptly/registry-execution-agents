@@ -1,5 +1,7 @@
 # Compatibility & interoperability
 
+> **PROVISIONAL — pending [cross-registry reconciliation](cross-registry-reconciliation.md).** Runtime-contract versioning, identifier syntax and cross-repo namespaces are provisional.
+
 ## Consumer contract (for `Zeptly/runtime-trigger`)
 1. Enumerate agents from the git tags/ledgers (or the generated `dist/registry-index.json`, published as a CI artifact).
 2. Resolve `id@version` from tag `exec.<slug>@<version>`; recompute the digest per [versioning](versioning.md) and compare with the ledger. Refuse on mismatch.
