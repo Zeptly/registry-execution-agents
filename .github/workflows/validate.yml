@@ -1,0 +1,50 @@
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Schema + semantic validation
+        run: npm run validate
+      - name: Validate example candidates
+        run: npm run validate:examples
+      - name: Unit tests
+        run: npm test
+      - name: Immutability, semver and lifecycle checks vs base
+        if: github.event_name == 'pull_request'
+        run: node scripts/check-changes.mjs --base "origin/${{ github.base_ref }}"
+      - name: Build registry index
+        run: npm run build:index
+      - uses: actions/upload-artifact@v4
+        with:
+          name: registry-index
+          path: dist/registry-index.json
+
+  # Candidates may exist on a branch while evidence is gathered, but can never merge.
+  merge-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: No candidate-status definitions may merge
+        run: npm run validate -- --forbid-candidates

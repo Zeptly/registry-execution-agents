@@ -1,0 +1,9 @@
+schema_version: "1.0"
+id: golden-clauses
+cases:
+  - id: single-termination
+    input:
+      document_ref: doc:sample-msa-001
+      clause_types: [termination]
+    assertions:
+      - type: output_schema_valid

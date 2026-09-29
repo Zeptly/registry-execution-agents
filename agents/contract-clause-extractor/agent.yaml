@@ -1,0 +1,84 @@
+schema_version: "1.0"
+kind: ExecutionAgent
+id: exec.contract-clause-extractor
+name: Contract Clause Extractor
+description: Extracts and labels key clauses from a single contract document into structured records.
+purpose:
+  summary: Identify termination, liability and renewal clauses in one contract and return them with source locations.
+  goals:
+    - Extract clauses with page and paragraph anchors.
+    - Never paraphrase legal text; quote verbatim.
+  non_goals:
+    - Legal advice or risk scoring.
+version: 0.1.0
+status: draft
+tags: [legal, extraction]
+owners:
+  - team:legal-ops
+provenance:
+  origin: human_authored
+  authors: [github:zeptly-bootstrap]
+  created_at: "2026-09-29"
+  change_ref: bootstrap
+instructions:
+  file: prompts/system.md
+contract:
+  input:
+    schema_file: contracts/input.schema.json
+  output:
+    schema_file: contracts/output.schema.json
+skills:
+  - id: skill.clause-extraction
+    version: ^0.1.0
+model_policy:
+  tier: frontier
+  aliases: [model.frontier-default]
+  required_features: [structured_output, long_context]
+  temperature: 0
+execution_policy:
+  mode: single_pass
+  max_steps: 4
+  idempotency: best_effort
+  triggers: [api, manual]
+  human_in_the_loop: on_demand
+timeout_policy:
+  run_seconds: 600
+retry_policy:
+  max_attempts: 2
+  retry_on: [model_rate_limit, model_overloaded]
+  never_retry_on: [input_invalid, policy_violation]
+checkpoint_policy:
+  strategy: none
+  resumable: false
+state:
+  persistence: none
+security:
+  classification: restricted
+  data_handling:
+    processes_pii: true
+    may_persist_inputs: false
+    redact_in_evidence: true
+  review:
+    security_review_required: true
+permissions:
+  scopes: [documents:read]
+  egress:
+    mode: none
+  side_effects: none
+evaluation:
+  suites:
+    - id: golden-clauses
+      file: evals/golden-clauses.yaml
+      kind: golden
+      required: true
+      min_pass_rate: 0.95
+  promotion_gates:
+    require_no_regression: true
+    human_approval: true
+observability:
+  tracing: standard
+  evidence:
+    record_tape: false
+compatibility:
+  runtime_contract:
+    min: 1.0.0

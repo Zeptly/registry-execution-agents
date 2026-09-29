@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["digest", "posted"],
+  "properties": {
+    "digest": { "type": "string", "maxLength": 2000 },
+    "anomalies": { "type": "array", "items": { "type": "string" } },
+    "posted": { "type": "boolean" },
+    "post_ref": { "type": "string" }
+  }
+}

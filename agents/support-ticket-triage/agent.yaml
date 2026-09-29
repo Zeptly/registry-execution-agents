@@ -1,0 +1,120 @@
+schema_version: "1.0"
+kind: ExecutionAgent
+id: exec.support-ticket-triage
+name: Support Ticket Triage
+description: Classifies an inbound support ticket, assigns priority and routing, and drafts an internal summary.
+purpose:
+  summary: Turn a raw support ticket into a structured triage decision so humans can act on it faster.
+  goals:
+    - Classify the ticket category and urgency.
+    - Recommend a routing queue with a short justification.
+    - Produce a neutral internal summary of at most 80 words.
+  non_goals:
+    - Replying to the customer.
+    - Modifying the ticket or any customer record.
+version: 1.0.0
+status: active
+tags: [support, classification]
+owners:
+  - team:support-platform
+provenance:
+  origin: human_authored
+  authors: [github:zeptly-bootstrap]
+  created_at: "2026-09-29"
+  change_ref: bootstrap
+instructions:
+  file: prompts/system.md
+contract:
+  input:
+    schema_file: contracts/input.schema.json
+  output:
+    schema_file: contracts/output.schema.json
+  delivery:
+    output_mode: inline
+    max_inline_bytes: 16384
+skills:
+  - id: skill.ticket-classification
+    version: 1.2.0
+  - id: skill.concise-summarization
+    version: 2.0.1
+capabilities:
+  - id: cap.knowledge.search
+    version: 1.0.0
+    reason: Look up routing rules and known-issue articles.
+tools:
+  - id: tool.knowledge-search
+    version: 1.1.0
+    capability: cap.knowledge.search
+model_policy:
+  tier: fast
+  aliases: [model.fast-default, model.balanced-default]
+  required_features: [structured_output, tool_use]
+  temperature: 0.1
+  max_output_tokens: 1024
+  budget:
+    max_cost_usd_per_run: 0.05
+execution_policy:
+  mode: workflow
+  max_steps: 8
+  idempotency: required
+  triggers: [event, api, orchestrator]
+  human_in_the_loop: never
+timeout_policy:
+  run_seconds: 120
+  step_seconds: 45
+  tool_call_seconds: 20
+  on_timeout: fail
+retry_policy:
+  max_attempts: 3
+  backoff: exponential
+  initial_delay_seconds: 2
+  max_delay_seconds: 30
+  retry_on: [transient_tool_error, model_rate_limit, model_overloaded, output_validation_failed]
+  never_retry_on: [permission_denied, policy_violation, input_invalid]
+checkpoint_policy:
+  strategy: per_step
+  resumable: true
+  capture: [context, tool_calls]
+  rollback:
+    supported: true
+    compensation: none
+state:
+  persistence: run
+security:
+  classification: internal
+  data_handling:
+    processes_pii: true
+    may_persist_inputs: false
+    redact_in_evidence: true
+permissions:
+  scopes: [knowledge:read]
+  egress:
+    mode: declared_capabilities_only
+  side_effects: none
+evaluation:
+  suites:
+    - id: golden-triage
+      file: evals/golden-triage.yaml
+      kind: golden
+      required: true
+      min_pass_rate: 0.9
+  promotion_gates:
+    require_no_regression: true
+    human_approval: true
+    max_cost_increase_pct: 20
+    max_latency_increase_pct: 25
+    min_evaluated_runs: 50
+observability:
+  tracing: standard
+  metrics: [latency, cost, tokens, tool_calls, retries, outcome]
+  log_level: info
+  evidence:
+    record_tape: true
+    tape_includes: [prompts, model_outputs, tool_calls, tool_results, checkpoints]
+    retention_days: 90
+    sampling_rate: 1
+compatibility:
+  runtime_contract:
+    min: 1.0.0
+  skills_registry: ^1.0.0
+  required_runtime_features: [checkpointing, structured-output]

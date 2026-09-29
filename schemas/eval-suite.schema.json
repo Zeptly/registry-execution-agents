@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.zeptly.dev/registry-execution-agents/1.0/eval-suite.schema.json",
+  "title": "Execution Agent evaluation suite",
+  "description": "Declarative test cases. Case inputs are validated against the agent's input contract. Execution is performed by the runtime/eval harness, not this repository.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "cases"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9]*([_-][a-z0-9]+)*$" },
+    "description": { "type": "string" },
+    "cases": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "input", "assertions"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9]*([_-][a-z0-9]+)*$" },
+          "input": {},
+          "assertions": {
+            "type": "array", "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["type"],
+              "properties": {
+                "type": { "enum": ["output_schema_valid", "json_path_equals", "json_path_matches", "no_tool_call", "judge"] }
+              },
+              "additionalProperties": true
+            }
+          }
+        }
+      }
+    }
+  }
+}

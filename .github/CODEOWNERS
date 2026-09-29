@@ -1,0 +1,7 @@
+# Replace team handles with real ones when the GitHub org teams exist.
+*                       @Zeptly/registry-maintainers
+/schemas/               @Zeptly/registry-maintainers @Zeptly/security
+/scripts/               @Zeptly/registry-maintainers
+/.github/               @Zeptly/registry-maintainers @Zeptly/security
+/agents/                @Zeptly/registry-maintainers
+# Definitions classified confidential/restricted also require security review (enforced by validation).

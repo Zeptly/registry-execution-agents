@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["category", "priority", "routing", "summary"],
+  "properties": {
+    "category": { "enum": ["billing", "bug", "how_to", "access", "feature_request", "outage", "other"] },
+    "priority": { "enum": ["low", "normal", "high", "urgent"] },
+    "routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["queue", "justification"],
+      "properties": {
+        "queue": { "type": "string" },
+        "justification": { "type": "string" }
+      }
+    },
+    "summary": { "type": "string", "maxLength": 600 },
+    "known_issue_ref": { "type": "string" }
+  }
+}
