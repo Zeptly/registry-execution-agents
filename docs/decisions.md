@@ -14,7 +14,8 @@ Outside Protocol v0.1 and **not decided here**:
 ## Registry-local choices to confirm (working decisions)
 
 - Candidates of one identity use distinct versions; promotion keeps the version and digest.
-- `metadata.maturity`, `attestations` and `security.approvals` are excluded from the digest; everything else is included.
+- Digest scope: see [sealing-and-versioning](sealing-and-versioning.md). `metadata.origin` is included (provenance) and `metadata.lifecycle` is excluded (governance marker); these two placements are registry-local interpretations.
+- Runtime locks are runtime-owned; this registry emits none.
 - Id grammar: dotted lowercase segments (`^[a-z][a-z0-9]*(-[a-z0-9]+)*(\.…)*$`); `synthetic.` prefix marks the synthetic namespace.
 - Attestation types: `evaluation`, `security-review`, `provenance`; approval types: `security-review`, `promotion`.
 - Governance placeholders: team handles in synthetic examples and `.github/CODEOWNERS` are placeholders.

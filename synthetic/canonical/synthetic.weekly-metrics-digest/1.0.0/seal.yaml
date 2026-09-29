@@ -5,10 +5,12 @@ subject:
   id: synthetic.weekly-metrics-digest
   version: 1.0.0
 algorithm: sha256
-digest: sha256:c901c86ba850afd2ae01a6da9a0bb8109f614d0e6885d078b9f2fe4a14cdb33c
-artifactDigest: sha256:5aec79d8ddfbd97a9381af901fa66de6e99dce5fd7acdaa74cc9bd0203f78ae7
+digest: sha256:547cc41bf8b067d4000da2182099c65a6bf3fc66f7e144fc7e57297e1eb82741
+artifactDigest: sha256:2db4bfb629ebd59bae86a8ca17e49c6d7d811130f540dee3795f20402050c962
 excludedFields:
+  - metadata.version
   - metadata.maturity
+  - metadata.lifecycle
   - attestations
   - security.approvals
 files:

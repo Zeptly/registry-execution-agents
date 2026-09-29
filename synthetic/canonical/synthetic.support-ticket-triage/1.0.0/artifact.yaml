@@ -5,7 +5,7 @@ metadata:
   version: 1.0.0
   registry: execution-agents
   origin:
-    type: authored
+    type: native
   maturity: canonical
   lifecycle: active
 spec:
@@ -156,7 +156,7 @@ references:
     version: 2.0.1
     digest: sha256:1b5f61d254800a7a6d3e767b47c0b2dbd8fbf8a231082e69fcb42ee02d6e0b93
 provenance:
-  createdAt: 2026-09-29T00:00:00Z
+  createdAt: 2026-09-29 00:00:00+00:00
   authors:
     - github:zeptly-bootstrap
   sourceRefs: []
@@ -170,18 +170,18 @@ security:
   approvals:
     - type: promotion
       approver: team:registry-maintainers-placeholder
-      approvedAt: 2026-09-29T13:15:51.417Z
-      subjectDigest: sha256:5a6a88ab2f976c457d6c6ae5dfff323f748a25e2938c75cdf7bf6b416441d7d7
+      approvedAt: 2026-09-29T19:47:27.825Z
+      subjectDigest: sha256:582455943b8b941e80d2475d115068f512166c60ee0feaa51aa906a82cc22844
       ref: evidence://synthetic/approval/support-ticket-triage/1.0.0
 attestations:
   - type: evaluation
     ref: evidence://synthetic/evaluation/support-ticket-triage/1.0.0/golden-triage
-    subjectDigest: sha256:5a6a88ab2f976c457d6c6ae5dfff323f748a25e2938c75cdf7bf6b416441d7d7
-    issuedAt: 2026-09-29T13:15:51.155Z
+    subjectDigest: sha256:582455943b8b941e80d2475d115068f512166c60ee0feaa51aa906a82cc22844
+    issuedAt: 2026-09-29T19:47:27.491Z
     suite: golden-triage
     attestor: system:synthetic-eval-harness
   - type: security-review
     ref: evidence://synthetic/security-review/support-ticket-triage/1.0.0
-    subjectDigest: sha256:5a6a88ab2f976c457d6c6ae5dfff323f748a25e2938c75cdf7bf6b416441d7d7
-    issuedAt: 2026-09-29T13:15:51.284Z
+    subjectDigest: sha256:582455943b8b941e80d2475d115068f512166c60ee0feaa51aa906a82cc22844
+    issuedAt: 2026-09-29T19:47:27.667Z
     attestor: team:security-placeholder

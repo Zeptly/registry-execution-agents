@@ -8,4 +8,10 @@
 - Attestations bind to an artifact **digest** and are never valid for any other content.
 - Runtimes should stamp sessions with the resolved lock (`id@version + digest`) so trajectories are reproducible against the exact sealed artifact.
 
-Disallowed in this repository: raw tapes, transcripts, customer data, `http(s)` endpoints, credentials.
+Disallowed in this repository: raw tapes, transcripts, customer data, endpoints, credentials.
+
+## Enforcement
+
+- **Synthetic evidence restriction.** In the `synthetic/` domain every evidence pointer (attestation `ref`, approval `ref`, `sourceRefs[].evidence`, `origin.evolution.sourceRefs[].evidence`) must start with `evidence://synthetic/`. In the production domain a pointer starting with `evidence://synthetic/` is rejected. Synthetic evidence can therefore never justify a production artifact.
+- **Payload scans.** Every sidecar payload file (`prompts/`, `contracts/`, `evals/`) is scanned for credentials and endpoints (`https?`, `wss?`, `ftp`, `s3`, `gs`, database and broker schemes, `localhost:port`, `ip:port`), with the JSON Schema meta-schema id under `$schema` as the only exemption.
+- **Runtime-record detection.** File and directory names matching tape/trace/transcript/trajectory/span/chatlog, JSON Lines/NDJSON, keys such as `trace_id`, `span_id`, `tool_calls`, `tool_call_id`, `transcript`, `trajectory`, `tape`, chat arrays of ≥4 role/content messages, and ≥10 role-prefixed turns in prompt text are rejected. These are heuristics; the file allow-list is the primary control.

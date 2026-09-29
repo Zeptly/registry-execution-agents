@@ -5,10 +5,12 @@ subject:
   id: synthetic.contract-clause-extractor
   version: 0.1.0
 algorithm: sha256
-digest: sha256:6322ecb4a88d285dfa26cf90347ff32890af9ce58f98e7ded96e5c216e3b4a5f
-artifactDigest: sha256:a4ace4571660be2dda4f86f4382bffc35f055f27d0a1fe7efa8ea52342fe4cd5
+digest: sha256:466cf6a507ffdc8f351a9f3acabfc7a77cc1614f285cb72ab3ec7870242aef77
+artifactDigest: sha256:a57b20d522d3b36f73353119839dabf867e572dd2b7ddf28cefe9bfe0f0e19c4
 excludedFields:
+  - metadata.version
   - metadata.maturity
+  - metadata.lifecycle
   - attestations
   - security.approvals
 files:

@@ -5,7 +5,7 @@ metadata:
   version: 1.0.0
   registry: execution-agents
   origin:
-    type: authored
+    type: native
   maturity: canonical
   lifecycle: active
 spec:
@@ -157,7 +157,7 @@ references:
     version: 1.0.0
     digest: sha256:dc6596b37b9e71a698b5040e18d135a3aa042efb164cba709ee906ab3c148aa7
 provenance:
-  createdAt: 2026-09-29T00:00:00Z
+  createdAt: 2026-09-29 00:00:00+00:00
   authors:
     - github:zeptly-bootstrap
   sourceRefs: []
@@ -174,18 +174,18 @@ security:
   approvals:
     - type: promotion
       approver: team:registry-maintainers-placeholder
-      approvedAt: 2026-09-29T13:15:51.800Z
-      subjectDigest: sha256:c901c86ba850afd2ae01a6da9a0bb8109f614d0e6885d078b9f2fe4a14cdb33c
+      approvedAt: 2026-09-29T19:47:28.336Z
+      subjectDigest: sha256:547cc41bf8b067d4000da2182099c65a6bf3fc66f7e144fc7e57297e1eb82741
       ref: evidence://synthetic/approval/weekly-metrics-digest/1.0.0
 attestations:
   - type: evaluation
     ref: evidence://synthetic/evaluation/weekly-metrics-digest/1.0.0/golden-digest
-    subjectDigest: sha256:c901c86ba850afd2ae01a6da9a0bb8109f614d0e6885d078b9f2fe4a14cdb33c
-    issuedAt: 2026-09-29T13:15:51.546Z
+    subjectDigest: sha256:547cc41bf8b067d4000da2182099c65a6bf3fc66f7e144fc7e57297e1eb82741
+    issuedAt: 2026-09-29T19:47:28.005Z
     suite: golden-digest
     attestor: system:synthetic-eval-harness
   - type: security-review
     ref: evidence://synthetic/security-review/weekly-metrics-digest/1.0.0
-    subjectDigest: sha256:c901c86ba850afd2ae01a6da9a0bb8109f614d0e6885d078b9f2fe4a14cdb33c
-    issuedAt: 2026-09-29T13:15:51.676Z
+    subjectDigest: sha256:547cc41bf8b067d4000da2182099c65a6bf3fc66f7e144fc7e57297e1eb82741
+    issuedAt: 2026-09-29T19:47:28.160Z
     attestor: team:security-placeholder

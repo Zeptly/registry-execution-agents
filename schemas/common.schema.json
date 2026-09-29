@@ -71,7 +71,7 @@
       "additionalProperties": false,
       "required": ["type"],
       "properties": {
-        "type": { "enum": ["authored", "imported", "evolved"] },
+        "type": { "enum": ["native", "upstream-seed", "evolved"] },
         "evolution": {
           "type": "object",
           "additionalProperties": false,
@@ -93,7 +93,7 @@
       },
       "allOf": [
         { "if": { "properties": { "type": { "const": "evolved" } }, "required": ["type"] }, "then": { "required": ["evolution"] } },
-        { "if": { "properties": { "type": { "const": "imported" } }, "required": ["type"] }, "then": { "required": ["import"] } }
+        { "if": { "properties": { "type": { "const": "upstream-seed" } }, "required": ["type"] }, "then": { "required": ["import"] } }
       ]
     },
     "provenance": {

@@ -5,10 +5,12 @@ subject:
   id: synthetic.support-ticket-triage
   version: 1.0.0
 algorithm: sha256
-digest: sha256:5a6a88ab2f976c457d6c6ae5dfff323f748a25e2938c75cdf7bf6b416441d7d7
-artifactDigest: sha256:b6fe3c2d053c34031c298d8706ac21590ef864ecf6ecd18ad4d202ee5c7ef721
+digest: sha256:582455943b8b941e80d2475d115068f512166c60ee0feaa51aa906a82cc22844
+artifactDigest: sha256:70f8e114c928f87cc7277a5ef3eff8313a22128758e51c41e77624d2f3a73d1b
 excludedFields:
+  - metadata.version
   - metadata.maturity
+  - metadata.lifecycle
   - attestations
   - security.approvals
 files:

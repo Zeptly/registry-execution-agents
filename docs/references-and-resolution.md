@@ -19,6 +19,10 @@ Everything validates structurally offline. Only `registry: execution-agents` ref
 | candidate | ranges (`^`/`~`) and `digest: null` allowed |
 | canonical | exact version **and** digest for `references`; exact versions for platform references that carry one |
 
+## Runtime locks are runtime-owned
+
+This registry does **not** generate, store or validate runtime locks. Producing a lock (declared range → exact version → digest, recorded in evidence) is a runtime responsibility. The registry supplies the inputs only: the index (`registry/index.json`), the seal digest, and structurally valid references. No registry-side lock shape is defined here; when a shared lock shape exists, the runtime will emit it, including an explicit representation of unresolved foreign references. Foreign (non-`execution-agents`) references are validated structurally only, and the registry never claims they resolved.
+
 ## Resolution model
 
 ```

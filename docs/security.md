@@ -6,7 +6,8 @@
 | Runtime or compiler alters declared classification | Classification is inside the digest; canonical artifacts carry a digest-bound security review |
 | Self-improving agent widens its own privileges | Candidates are separate sealed objects; promotion needs digest-bound evaluation, security review and governed approval |
 | Stale/misapplied assurance | Attestations/approvals fail validation when `subjectDigest` ≠ current digest |
-| Secrets/endpoints in Git | Validators reject `http(s)://` strings and credential patterns; artifacts carry secret **names** only |
+| Secrets/endpoints in Git | Validators scan the artifact **and every sidecar payload file** for endpoints (URL schemes, `host:port`) and credential patterns; only JSON Schema meta-schema ids under `$schema` are exempt; artifacts carry secret **names** only |
+| Raw runtime records (tapes, traces, transcripts) or oversized/odd files smuggled into a version | Strict file allow-list, size limits, no symlinks, LF/UTF-8 only, runtime-record name and content detection ([sealing-and-versioning](sealing-and-versioning.md#file-policy)) |
 | Sensitive execution data in Git | Evidence by pointer only; `redactInEvidence` required for confidential/restricted and PII |
 | Synthetic content passed off as production | Isolated tree + `synthetic.` namespace; production index/checks reject it |
 | Prompt injection via task inputs | Instructions treat inputs as untrusted; irreversible tools require approval; egress limited to declared capabilities |

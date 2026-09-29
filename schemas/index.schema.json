@@ -25,7 +25,7 @@
           "lifecycle": { "enum": ["active", "deprecated", "revoked"] },
           "origin": {
             "type": "object", "additionalProperties": false, "required": ["type"],
-            "properties": { "type": { "enum": ["authored", "imported", "evolved"] }, "evolutionKind": { "type": "string" } }
+            "properties": { "type": { "enum": ["native", "upstream-seed", "evolved"] }, "evolutionKind": { "type": "string" } }
           },
           "location": { "type": "string" }
         }

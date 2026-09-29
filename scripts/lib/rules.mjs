@@ -5,13 +5,12 @@ import addFormats from "ajv-formats";
 import { compare, isExact, satisfies } from "./semver.mjs";
 import {
   computeSeal, fmtErrors, readYaml, resolveSchema, payloadFiles, effectiveLifecycle,
-  TREES, REGISTRY, KIND, API_VERSION,
+  TREES, REGISTRY, KIND, API_VERSION, ARTIFACT_FILE, SEAL_FILE,
 } from "./core.mjs";
+import { scanVersionDir, scanPayloadContent, stringFindings } from "./files.mjs";
 
-const URL_RE = /https?:\/\//i;
-const SECRET_RE = /(sk-[A-Za-z0-9]{16,}|-----BEGIN [A-Z ]*PRIVATE KEY|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{30,}|xox[baprs]-[A-Za-z0-9-]{10,})/;
 const SYNTH = "synthetic.";
-const TEXT_EXT = /\.(md|txt|ya?ml|json)$/;
+const SYNTH_EVIDENCE = "evidence://synthetic/";
 
 function walk(v, path, fn) {
   fn(v, path);
@@ -26,10 +25,20 @@ export function collectRefs(a) {
   return out.filter(([p]) => !p.startsWith("$.metadata"));
 }
 
+/** Every evidence pointer in an artifact, with its path. */
+export function collectEvidencePointers(a) {
+  const out = [];
+  a.attestations.forEach((x, i) => out.push([`attestations[${i}].ref`, x.ref]));
+  a.security.approvals.forEach((x, i) => { if (x.ref) out.push([`security.approvals[${i}].ref`, x.ref]); });
+  a.provenance.sourceRefs.forEach((x, i) => { if (x.evidence) out.push([`provenance.sourceRefs[${i}].evidence`, x.evidence]); });
+  (a.metadata.origin.evolution?.sourceRefs ?? []).forEach((x, i) => { if (x.evidence) out.push([`metadata.origin.evolution.sourceRefs[${i}].evidence`, x.evidence]); });
+  return out;
+}
+
 const key = (r) => `${r.registry}/${r.id}`;
 
 /** Rules that need only the object itself. */
-function objectRules(o, v, errs) {
+function objectRules(o, v, errs, name) {
   const a = o.artifact, s = a.spec, m = a.metadata, dir = o.dir;
   const err = (x) => errs.push(x);
   const canonical = m.maturity === "canonical";
@@ -57,13 +66,22 @@ function objectRules(o, v, errs) {
         if (!contracts.input(c.input)) err(`${su.file}: case '${c.id}' input violates spec.contract.input: ${fmtErrors(contracts.input.errors).join("; ")}`);
   }
 
-  // no endpoints / credentials; no raw runtime data
-  walk(a, "$", (val, path) => {
-    if (typeof val !== "string") return;
-    if (URL_RE.test(val)) err(`${path}: contains an http(s) URL; artifacts must not hard-code endpoints`);
-    if (SECRET_RE.test(val)) err(`${path}: looks like a credential`);
-  });
-  for (const f of files) if (TEXT_EXT.test(f) && existsSync(join(dir, f)) && SECRET_RE.test(readFileSync(join(dir, f), "utf8"))) err(`${f}: looks like it contains a credential`);
+  // file policy (allow-list, size limits, symlinks) and payload content scans (endpoints, secrets, runtime records)
+  scanVersionDir(dir).errors.forEach(err);
+  scanPayloadContent(dir, [...files]).forEach(err);
+  for (const f of [ARTIFACT_FILE, SEAL_FILE]) {
+    const p = join(dir, f);
+    if (existsSync(p) && readFileSync(p, "utf8").includes("\r")) err(`${f}: CR characters not allowed (LF line endings only)`);
+  }
+
+  // no endpoints / credentials anywhere in the artifact (only JSON Schema `$schema` meta-schema ids are exempt)
+  walk(a, "$", (val, path) => { if (typeof val === "string") stringFindings(val, path).forEach(err); });
+
+  // evidence pointer restrictions: synthetic evidence only in the synthetic domain, never in production
+  for (const [path, ptr] of collectEvidencePointers(a)) {
+    if (name === "synthetic" && !ptr.startsWith(SYNTH_EVIDENCE)) err(`${path}: synthetic artifacts may only use '${SYNTH_EVIDENCE}…' evidence pointers, got '${ptr}'`);
+    if (name !== "synthetic" && ptr.startsWith(SYNTH_EVIDENCE)) err(`${path}: production artifacts cannot cite synthetic evidence '${ptr}'`);
+  }
 
   // references
   const seen = new Set();
@@ -83,7 +101,7 @@ function objectRules(o, v, errs) {
   // provenance/origin
   const o2 = m.origin;
   if (o2.type !== "evolved" && o2.evolution) err(`origin.evolution is only valid for origin.type 'evolved'`);
-  if (o2.type !== "imported" && o2.import) err(`origin.import is only valid for origin.type 'imported'`);
+  if (o2.type !== "upstream-seed" && o2.import) err(`origin.import is only valid for origin.type 'upstream-seed'`);
   if (o2.type === "evolved") {
     if (!o2.evolution.sourceRefs.some((r) => r.evidence && r.role === "motivates")) err(`origin.evolution needs at least one evidence source with role 'motivates'`);
     const lineage = o2.evolution.sourceRefs.filter((r) => r.registry === REGISTRY && r.id === m.id);
@@ -179,7 +197,7 @@ export function validateDomain(domain, name, v) {
       for (const [p, r] of collectRefs(o.artifact)) if (r.id.startsWith(SYNTH)) errors.push(`${p}: production artifacts cannot reference synthetic '${r.id}'`);
     }
     x.digest = sealRules(o, v, errors);
-    objectRules(o, v, errors);
+    objectRules(o, v, errors, name);
   }
 
   // cross-object rules
@@ -239,6 +257,7 @@ export function validateDomain(domain, name, v) {
   }
 
   for (const x of loaded) results.push({ path: x.o.dir, errors: x.errors });
+  if (domain.issues?.length) results.push({ path: domain.root, errors: domain.issues });
   return [...results, ...overlayResults];
 }
 

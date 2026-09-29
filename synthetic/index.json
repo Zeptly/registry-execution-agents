@@ -8,11 +8,11 @@
       "kind": "ExecutionAgent",
       "id": "synthetic.contract-clause-extractor",
       "version": "0.1.0",
-      "digest": "sha256:6322ecb4a88d285dfa26cf90347ff32890af9ce58f98e7ded96e5c216e3b4a5f",
+      "digest": "sha256:466cf6a507ffdc8f351a9f3acabfc7a77cc1614f285cb72ab3ec7870242aef77",
       "maturity": "candidate",
       "lifecycle": "active",
       "origin": {
-        "type": "authored"
+        "type": "native"
       },
       "location": "synthetic/candidates/synthetic.contract-clause-extractor/0.1.0"
     },
@@ -20,11 +20,11 @@
       "kind": "ExecutionAgent",
       "id": "synthetic.support-ticket-triage",
       "version": "1.0.0",
-      "digest": "sha256:5a6a88ab2f976c457d6c6ae5dfff323f748a25e2938c75cdf7bf6b416441d7d7",
+      "digest": "sha256:582455943b8b941e80d2475d115068f512166c60ee0feaa51aa906a82cc22844",
       "maturity": "canonical",
       "lifecycle": "active",
       "origin": {
-        "type": "authored"
+        "type": "native"
       },
       "location": "synthetic/canonical/synthetic.support-ticket-triage/1.0.0"
     },
@@ -32,7 +32,7 @@
       "kind": "ExecutionAgent",
       "id": "synthetic.support-ticket-triage",
       "version": "1.0.1",
-      "digest": "sha256:b55f2cca20406aa7a1d89d089590d934058707d102b2c3a4d28fcf4e59fd5eeb",
+      "digest": "sha256:8a5894194b0337d933c9f33dbb8b6e50ded990714ed4d0232a7f263952e83d11",
       "maturity": "candidate",
       "lifecycle": "active",
       "origin": {
@@ -45,11 +45,11 @@
       "kind": "ExecutionAgent",
       "id": "synthetic.weekly-metrics-digest",
       "version": "1.0.0",
-      "digest": "sha256:c901c86ba850afd2ae01a6da9a0bb8109f614d0e6885d078b9f2fe4a14cdb33c",
+      "digest": "sha256:547cc41bf8b067d4000da2182099c65a6bf3fc66f7e144fc7e57297e1eb82741",
       "maturity": "canonical",
       "lifecycle": "active",
       "origin": {
-        "type": "authored"
+        "type": "native"
       },
       "location": "synthetic/canonical/synthetic.weekly-metrics-digest/1.0.0"
     }

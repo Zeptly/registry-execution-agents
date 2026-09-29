@@ -11,15 +11,25 @@ metadata:
   id: support.ticket-triage          # dotted lowercase segments; permanent
   version: 1.0.0                     # SemVer
   registry: execution-agents
-  origin: { type: authored }         # authored | imported | evolved
+  origin: { type: native }           # native | upstream-seed | evolved
   maturity: canonical                # candidate | canonical
-  lifecycle: active                  # lifecycle AT PUBLICATION; the effective state is the overlay
+  lifecycle: active                  # publication marker only (not in the digest); the effective state is the overlay
 spec: { … }                          # Execution Agent semantics (below)
 references: [ {registry: skills, id: ticket-classification, version: 1.2.0, digest: sha256:…} ]
 provenance: { createdAt, authors, sourceRefs, transformations }
 security: { classification, capabilities: [refs], approvals: [governed approvals] }
 attestations: [ {type, ref: evidence://…, subjectDigest: sha256:…, suite?} ]
 ```
+
+## Origin
+
+| `origin.type` | Meaning | Required block |
+|---|---|---|
+| `native` | Created in this registry | none |
+| `upstream-seed` | Seeded from an upstream source | `origin.import {source, license?}` |
+| `evolved` | Derived from an earlier version by evidence | `origin.evolution {kind, sourceRefs, rationale, proposer, expectedEffect?}` |
+
+`metadata.origin.evolution.kind` is the **sole** location of the evolution kind (an open label, e.g. `refined`). Nothing under `provenance` carries an evolution kind, and the schema rejects it there. The index's `origin.evolutionKind` is derived data.
 
 ## `spec` (class-specific, preserved)
 
@@ -41,7 +51,7 @@ attestations: [ {type, ref: evidence://…, subjectDigest: sha256:…, suite?} ]
 
 ## Independent dimensions
 
-`maturity` (candidate|canonical), `metadata.lifecycle` / overlay (active|deprecated|revoked) and `origin` (authored|imported|evolved) are separate fields and change independently. Maturity is governance state, not content; it is excluded from the digest.
+`maturity` (candidate|canonical), `metadata.lifecycle` / overlay (active|deprecated|revoked) and `origin` (native|upstream-seed|evolved) are separate fields and change independently. Maturity is governance state, not content; it is excluded from the digest.
 
 ## Cross-field rules (validator-enforced)
 

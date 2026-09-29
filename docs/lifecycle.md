@@ -1,6 +1,6 @@
 # Lifecycle
 
-Lifecycle is an **append-only overlay**, independent of maturity and origin. `metadata.lifecycle` in the artifact records the state at publication (`active`); the effective state is the last overlay event for that exact `(id, version, digest)`, defaulting to `active`.
+Lifecycle is an **append-only overlay**, independent of maturity and origin. `metadata.lifecycle` in the artifact is a publication marker (excluded from the digest) recording the state at publication (`active`); the effective state is the last overlay event for that exact `(id, version, digest)`, defaulting to `active`.
 
 ```yaml
 # registry/lifecycle/support.ticket-triage.yaml

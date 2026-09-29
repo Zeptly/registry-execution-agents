@@ -13,11 +13,11 @@ Scope: Execution Agents only. The protocol envelope is shared with other registr
 | Published version | Immutable directory `<id>/<version>/` holding `artifact.yaml`, payload files and `seal.yaml`. Addressed by **version + content digest**. |
 | Maturity | `metadata.maturity`: `candidate` or `canonical`. Candidates are **registry objects** (Git branches/PRs are only governance transport). |
 | Lifecycle | Append-only **overlay** (`lifecycle/<id>.yaml`): `active`, `deprecated`, `revoked`. |
-| Origin | `metadata.origin`: `authored`, `imported`, `evolved` (with `evolution.sourceRefs`). |
+| Origin | `metadata.origin.type`: `native`, `upstream-seed`, `evolved` (evolution lineage and `kind` live only at `metadata.origin.evolution`). |
 | References | Structured `{registry, id, version, digest?}` objects. Canonical artifacts pin exact version **and** digest. |
 | Attestations / approvals | Bound to the exact subject digest; **stale ones fail validation**. |
-| Evidence | Opaque `evidence://…` pointers. Raw tapes/trajectories never enter Git. |
-| Indexes | Deterministic derived files `registry/index.json`, `synthetic/index.json`, checked in CI. |
+| Evidence | Opaque `evidence://…` pointers (synthetic evidence only as `evidence://synthetic/…`). Raw tapes/trajectories never enter Git; version directories follow a strict file allow-list. |
+| Indexes | Deterministic derived files `registry/index.json`, `synthetic/index.json` (code-point ordering, no timestamps), checked in CI. |
 | Synthetic examples | Isolated `synthetic/` tree + `synthetic.` id namespace. Can never enter the production index. |
 
 ## Layout
