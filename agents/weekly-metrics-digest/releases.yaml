@@ -1,8 +1,0 @@
-schema_version: "1.0"
-agent: exec.weekly-metrics-digest
-releases:
-  - version: 1.0.0
-    digest: sha256:cfc6f041d0216060855b3637b36f924cc59a01538c7bdc9a2bd334a4b3f000b6
-    released_at: 2026-09-29
-    change_ref: bootstrap
-    git_tag: exec.weekly-metrics-digest@1.0.0

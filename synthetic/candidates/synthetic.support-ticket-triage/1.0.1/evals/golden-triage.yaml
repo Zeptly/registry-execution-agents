@@ -1,0 +1,38 @@
+apiVersion: registry.zeptly.dev/v1alpha1
+kind: EvaluationSuite
+id: golden-triage
+description: Golden cases covering the main categories and the not-a-ticket edge case.
+cases:
+- id: billing-double-charge
+  input:
+    ticket_id: T-1001
+    subject: Charged twice this month
+    body: I see two identical charges on my card for the March invoice. Please refund
+      one.
+    customer_tier: standard
+  assertions:
+  - type: output_schema_valid
+  - type: json_path_equals
+    path: $.category
+    value: billing
+- id: outage-urgent
+  input:
+    ticket_id: T-1002
+    subject: Nobody on my team can log in
+    body: Since 09:00 all 40 users get a 500 error on login. We are blocked.
+    customer_tier: enterprise
+  assertions:
+  - type: output_schema_valid
+  - type: json_path_equals
+    path: $.priority
+    value: urgent
+- id: not-a-ticket
+  input:
+    ticket_id: T-1003
+    subject: ''
+    body: asdf
+  assertions:
+  - type: json_path_equals
+    path: $.category
+    value: other
+  - type: no_tool_call

@@ -1,0 +1,191 @@
+apiVersion: registry.zeptly.dev/v1alpha1
+kind: ExecutionAgent
+metadata:
+  id: synthetic.weekly-metrics-digest
+  version: 1.0.0
+  registry: execution-agents
+  origin:
+    type: authored
+  maturity: canonical
+  lifecycle: active
+spec:
+  name: Weekly Metrics Digest
+  description: Gathers a workspace's weekly metrics, writes a short narrative
+    digest, and posts it after approval.
+  purpose:
+    summary: Produce a weekly written digest of key workspace metrics and deliver it
+      to a chosen channel once a human approves the text.
+    goals:
+      - Summarise week-over-week movement for the requested metrics.
+      - Flag anomalies with the supporting numbers.
+      - Post the approved digest to the requested channel.
+    nonGoals:
+      - Forecasting.
+      - Changing any metric definition or source data.
+  tags:
+    - reporting
+    - digest
+  owners:
+    - team:insights
+  instructions:
+    file: prompts/system.md
+  contract:
+    input:
+      schemaFile: contracts/input.schema.json
+    output:
+      schemaFile: contracts/output.schema.json
+  executionPolicy:
+    mode: workflow
+    maxSteps: 15
+    idempotency: required
+    triggers:
+      - schedule
+      - manual
+    humanInTheLoop: required_for_side_effects
+  timeoutPolicy:
+    runSeconds: 900
+    stepSeconds: 120
+    toolCallSeconds: 60
+    onTimeout: checkpoint_and_suspend
+  retryPolicy:
+    maxAttempts: 2
+    backoff: exponential
+    initialDelaySeconds: 5
+    maxDelaySeconds: 60
+    retryOn:
+      - transient_tool_error
+      - model_rate_limit
+      - timeout
+    neverRetryOn:
+      - permission_denied
+      - approval_rejected
+      - policy_violation
+  checkpointPolicy:
+    strategy: before_side_effects
+    resumable: true
+    capture:
+      - context
+      - tool_calls
+      - state
+    rollback:
+      supported: true
+      compensation: manual
+  state:
+    persistence: durable
+    stores:
+      - name: last-digest
+        kind: document
+        scope: agent
+        retentionDays: 180
+  evaluation:
+    suites:
+      - id: golden-digest
+        file: evals/golden-digest.yaml
+        kind: golden
+        required: true
+        minPassRate: 0.85
+    promotionGates:
+      requireNoRegression: true
+      humanApproval: true
+      minEvaluatedRuns: 20
+  observability:
+    tracing: standard
+    metrics:
+      - latency
+      - cost
+      - tokens
+      - tool_calls
+      - outcome
+    evidence:
+      recordTape: true
+      tapeIncludes:
+        - model_outputs
+        - tool_calls
+        - tool_results
+        - checkpoints
+      retentionDays: 60
+  modelPolicy:
+    tier: balanced
+    requiredFeatures:
+      - structured_output
+      - tool_use
+    temperature: 0.3
+    budget:
+      maxCostUsdPerRun: 0.4
+    models:
+      - registry: models
+        id: balanced-default
+  tools:
+    - ref:
+        registry: tools
+        id: metrics-query
+        version: 1.0.0
+      capability:
+        registry: capabilities
+        id: analytics.query
+        version: 1.0.0
+    - ref:
+        registry: tools
+        id: channel-post
+        version: 1.0.0
+      capability:
+        registry: capabilities
+        id: messaging.post
+        version: 1.0.0
+      sideEffects: irreversible
+      requiresApproval: true
+  dataHandling:
+    processesPii: false
+    redactInEvidence: true
+  permissions:
+    scopes:
+      - analytics:read
+      - messaging:write
+    egress:
+      mode: declared_capabilities_only
+    sideEffects: irreversible
+    runtimeApprovals:
+      - before: Posting the digest to a channel
+        approver: workspace_member
+  compatibility:
+    requiredRuntimeFeatures:
+      - checkpointing
+      - human-approval
+references:
+  - registry: skills
+    id: metrics-narration
+    version: 1.0.0
+    digest: sha256:dc6596b37b9e71a698b5040e18d135a3aa042efb164cba709ee906ab3c148aa7
+provenance:
+  createdAt: 2026-09-29T00:00:00Z
+  authors:
+    - github:zeptly-bootstrap
+  sourceRefs: []
+  transformations: []
+security:
+  classification: internal
+  capabilities:
+    - registry: capabilities
+      id: analytics.query
+      version: 1.0.0
+    - registry: capabilities
+      id: messaging.post
+      version: 1.0.0
+  approvals:
+    - type: promotion
+      approver: team:registry-maintainers-placeholder
+      approvedAt: 2026-09-29T13:15:51.800Z
+      subjectDigest: sha256:c901c86ba850afd2ae01a6da9a0bb8109f614d0e6885d078b9f2fe4a14cdb33c
+      ref: evidence://synthetic/approval/weekly-metrics-digest/1.0.0
+attestations:
+  - type: evaluation
+    ref: evidence://synthetic/evaluation/weekly-metrics-digest/1.0.0/golden-digest
+    subjectDigest: sha256:c901c86ba850afd2ae01a6da9a0bb8109f614d0e6885d078b9f2fe4a14cdb33c
+    issuedAt: 2026-09-29T13:15:51.546Z
+    suite: golden-digest
+    attestor: system:synthetic-eval-harness
+  - type: security-review
+    ref: evidence://synthetic/security-review/weekly-metrics-digest/1.0.0
+    subjectDigest: sha256:c901c86ba850afd2ae01a6da9a0bb8109f614d0e6885d078b9f2fe4a14cdb33c
+    issuedAt: 2026-09-29T13:15:51.676Z
+    attestor: team:security-placeholder

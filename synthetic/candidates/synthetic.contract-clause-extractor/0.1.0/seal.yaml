@@ -1,0 +1,18 @@
+apiVersion: registry.zeptly.dev/v1alpha1
+kind: Seal
+subject:
+  registry: execution-agents
+  id: synthetic.contract-clause-extractor
+  version: 0.1.0
+algorithm: sha256
+digest: sha256:6322ecb4a88d285dfa26cf90347ff32890af9ce58f98e7ded96e5c216e3b4a5f
+artifactDigest: sha256:a4ace4571660be2dda4f86f4382bffc35f055f27d0a1fe7efa8ea52342fe4cd5
+excludedFields:
+  - metadata.maturity
+  - attestations
+  - security.approvals
+files:
+  contracts/input.schema.json: sha256:5500a43a9407df4ed50394434200151a9d521d55871509c04805f9440be30b96
+  contracts/output.schema.json: sha256:1663f5ff0c75f5dea5b8e10e316c0f39b1adca2ae93a4e9b99cf313e55532c22
+  evals/golden-clauses.yaml: sha256:43100dfc5b10a0992bec0074f7819a265da94073a8bad48efa837fe2eee8d884
+  prompts/system.md: sha256:c839e038d681f8c0ecaeef089da4eb7db678dfc07c8e9fc3770e2f476952637d

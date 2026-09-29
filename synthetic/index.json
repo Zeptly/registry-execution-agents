@@ -1,0 +1,57 @@
+{
+  "apiVersion": "registry.zeptly.dev/v1alpha1",
+  "kind": "RegistryIndex",
+  "registry": "execution-agents",
+  "domain": "synthetic",
+  "entries": [
+    {
+      "kind": "ExecutionAgent",
+      "id": "synthetic.contract-clause-extractor",
+      "version": "0.1.0",
+      "digest": "sha256:6322ecb4a88d285dfa26cf90347ff32890af9ce58f98e7ded96e5c216e3b4a5f",
+      "maturity": "candidate",
+      "lifecycle": "active",
+      "origin": {
+        "type": "authored"
+      },
+      "location": "synthetic/candidates/synthetic.contract-clause-extractor/0.1.0"
+    },
+    {
+      "kind": "ExecutionAgent",
+      "id": "synthetic.support-ticket-triage",
+      "version": "1.0.0",
+      "digest": "sha256:5a6a88ab2f976c457d6c6ae5dfff323f748a25e2938c75cdf7bf6b416441d7d7",
+      "maturity": "canonical",
+      "lifecycle": "active",
+      "origin": {
+        "type": "authored"
+      },
+      "location": "synthetic/canonical/synthetic.support-ticket-triage/1.0.0"
+    },
+    {
+      "kind": "ExecutionAgent",
+      "id": "synthetic.support-ticket-triage",
+      "version": "1.0.1",
+      "digest": "sha256:b55f2cca20406aa7a1d89d089590d934058707d102b2c3a4d28fcf4e59fd5eeb",
+      "maturity": "candidate",
+      "lifecycle": "active",
+      "origin": {
+        "type": "evolved",
+        "evolutionKind": "refined"
+      },
+      "location": "synthetic/candidates/synthetic.support-ticket-triage/1.0.1"
+    },
+    {
+      "kind": "ExecutionAgent",
+      "id": "synthetic.weekly-metrics-digest",
+      "version": "1.0.0",
+      "digest": "sha256:c901c86ba850afd2ae01a6da9a0bb8109f614d0e6885d078b9f2fe4a14cdb33c",
+      "maturity": "canonical",
+      "lifecycle": "active",
+      "origin": {
+        "type": "authored"
+      },
+      "location": "synthetic/canonical/synthetic.weekly-metrics-digest/1.0.0"
+    }
+  ]
+}

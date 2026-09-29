@@ -1,53 +1,53 @@
 # registry-execution-agents
 
-The canonical, Git-native registry of **Zeptly Execution Agent** definitions.
+The canonical registry of **Zeptly Execution Agent** artifacts, conforming to **Zeptly Registry Protocol v0.1** (`apiVersion: registry.zeptly.dev/v1alpha1`).
 
-> This registry defines **what** an Execution Agent is. `Zeptly/runtime-trigger` (on Trigger.dev) decides **how** it runs.
-> Git is the authoritative ledger; Trigger.dev, Cortex and telemetry stores are never the source of truth for a definition.
+> This registry defines **what** an Execution Agent is. A runtime (later, `Zeptly/runtime-trigger` on Trigger.dev) decides **how** it runs. No runtime, gateway or evidence-store code lives here.
 
-> **Status: provisional.** Several architectural choices are working defaults pending [cross-registry reconciliation](docs/cross-registry-reconciliation.md) with `registry-skills`, `registry-qb-agents` and `runtime-trigger`.
+Scope: Execution Agents only. The protocol envelope is shared with other registries; the `spec` of an `ExecutionAgent` is owned here and preserves durable task contracts and retry, timeout, checkpoint, state and execution policies.
 
-Scope: Execution Agents only. Tiny Agents, Timesavers, QB Agents and Zep are out of scope.
+## Model at a glance
 
-## What's here
-
-| Path | Purpose |
+| Concern | How it is represented |
 |---|---|
-| `agents/<slug>/` | One directory per agent: `agent.yaml`, `releases.yaml` (append-only ledger), `prompts/`, `contracts/`, `evals/`, `CHANGELOG.md` |
-| `schemas/` | JSON Schema (2020-12) for manifests, release ledgers and eval suites |
-| `scripts/` | Validation, digesting, release recording, change checks, tagging, index build |
-| `docs/` | Architecture and rules (start with [architecture](docs/architecture.md)) |
-| `examples/candidates/` | A worked candidate-mutation (evidence-driven improvement) that is valid but not mergeable |
-| `templates/agent/` | Scaffold for a new agent |
-| `.github/workflows/` | CI validation, merge gate and release tagging |
+| Published version | Immutable directory `<id>/<version>/` holding `artifact.yaml`, payload files and `seal.yaml`. Addressed by **version + content digest**. |
+| Maturity | `metadata.maturity`: `candidate` or `canonical`. Candidates are **registry objects** (Git branches/PRs are only governance transport). |
+| Lifecycle | Append-only **overlay** (`lifecycle/<id>.yaml`): `active`, `deprecated`, `revoked`. |
+| Origin | `metadata.origin`: `authored`, `imported`, `evolved` (with `evolution.sourceRefs`). |
+| References | Structured `{registry, id, version, digest?}` objects. Canonical artifacts pin exact version **and** digest. |
+| Attestations / approvals | Bound to the exact subject digest; **stale ones fail validation**. |
+| Evidence | Opaque `evidence://…` pointers. Raw tapes/trajectories never enter Git. |
+| Indexes | Deterministic derived files `registry/index.json`, `synthetic/index.json`, checked in CI. |
+| Synthetic examples | Isolated `synthetic/` tree + `synthetic.` id namespace. Can never enter the production index. |
 
-Example agents: `exec.support-ticket-triage` (active), `exec.weekly-metrics-digest` (active, approval-gated side effect), `exec.contract-clause-extractor` (draft, restricted data).
+## Layout
+
+```
+registry/                        PRODUCTION domain (currently empty: no production artifacts yet)
+  canonical/<id>/<version>/      artifact.yaml · seal.yaml · prompts/ · contracts/ · evals/
+  candidates/<id>/<version>/     same shape, maturity: candidate
+  lifecycle/<id>.yaml            append-only lifecycle overlay
+  index.json                     generated
+synthetic/                       ISOLATED synthetic examples (same structure, ids start with `synthetic.`)
+schemas/                         common · execution-agent · seal · lifecycle · index · eval-suite
+scripts/                         validate · seal · attest · promote · build-index · check-changes
+docs/  test/  .github/
+```
 
 ## Quick start
 
 ```bash
 npm ci
-npm run ci                                   # validate agents, examples, run tests
-node scripts/check-changes.mjs --base origin/main   # immutability / semver / lifecycle rules vs base
-npm run build:index                          # writes dist/registry-index.json (generated, not committed)
+npm run ci                                      # validate both domains, indexes are current, tests
+node scripts/check-changes.mjs --base origin/main   # immutability against a base ref
+
+node scripts/seal.mjs <artifact-dir>            # write seal.yaml (content digest)
+node scripts/attest.mjs <artifact-dir> --type evaluation --suite <id> --ref evidence://…
+node scripts/attest.mjs <artifact-dir> --approval promotion --approver github:<user>
+node scripts/promote.mjs <id> <version>         # candidate -> canonical (gates enforced, digest unchanged)
+npm run build:index                             # regenerate both indexes
 ```
-
-Add or change an agent: see [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/promotion-workflow.md](docs/promotion-workflow.md).
-
-## Core ideas
-
-1. **Stable identity, explicit versions.** `exec.<slug>` never changes; every reference is `id@version`. Released versions are immutable, pinned by a content digest in `releases.yaml` and by a git tag `exec.<slug>@x.y.z`.
-2. **Declarative definitions.** Instructions, I/O contracts, policies (model, execution, timeout, retry, checkpoint), permissions, security, evaluation and observability requirements — no endpoints, no secrets, no runtime code.
-3. **Evidence informs change; it never applies it.** Execution → tape/evidence → evaluation → *candidate* → PR → validation → promotion. Nothing writes to canonical definitions except a reviewed merge.
-4. **Pointers, not payloads.** Tapes and telemetry live outside Git and are referenced by logical URI + digest ([evidence model](docs/evidence-model.md)).
-5. **Portable.** YAML, JSON, Markdown; Node scripts with three small dependencies (`ajv`, `ajv-formats`, `yaml`).
 
 ## Docs
 
-- [Architecture](docs/architecture.md) — layout, boundaries, AgentGit influence
-- [Agent definition reference](docs/agent-definition.md)
-- [Versioning](docs/versioning.md) · [Lifecycle](docs/lifecycle.md)
-- [Evidence model](docs/evidence-model.md) · [Promotion workflow](docs/promotion-workflow.md)
-- [Security](docs/security.md) · [Compatibility & interoperability](docs/compatibility-and-interop.md)
-- [Decisions & open questions](docs/decisions.md)
-- [Cross-Registry Reconciliation Required](docs/cross-registry-reconciliation.md)
+[Architecture](docs/architecture.md) · [Artifact model](docs/artifact-model.md) · [Sealing & versioning](docs/sealing-and-versioning.md) · [Maturity & promotion](docs/maturity-and-promotion.md) · [Lifecycle](docs/lifecycle.md) · [References & resolution](docs/references-and-resolution.md) · [Evidence model](docs/evidence-model.md) · [Security](docs/security.md) · [Protocol conformance](docs/protocol-conformance.md) · [Deferred decisions](docs/decisions.md)

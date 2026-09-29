@@ -1,49 +1,28 @@
 #!/usr/bin/env node
-// Compare the working tree against a base git ref and enforce immutability, semver and lifecycle rules.
-// usage: node scripts/check-changes.mjs --base origin/main
+// Enforce immutability against a base git ref.  usage: node scripts/check-changes.mjs --base origin/main
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parse as parseYaml } from "yaml";
-import { REPO_ROOT, listAgentDirs, loadAgent } from "./lib/registry.mjs";
-import { checkAgentChange } from "./lib/changes.mjs";
+import { REPO_ROOT, DOMAINS, loadDomain } from "./lib/core.mjs";
+import { checkDomainChange } from "./lib/changes.mjs";
 
 const args = process.argv.slice(2);
 const base = args.includes("--base") ? args[args.indexOf("--base") + 1] : "origin/main";
-const git = (...a) => execFileSync("git", a, { cwd: REPO_ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+const git = (a, o = {}) => execFileSync("git", a, { cwd: REPO_ROOT, maxBuffer: 1 << 27, ...o });
+try { git(["rev-parse", "--verify", `${base}^{commit}`], { stdio: "ignore" }); }
+catch { console.log(`base ref '${base}' not found; skipping change checks`); process.exit(0); }
 
-try { git("rev-parse", "--verify", `${base}^{commit}`); }
-catch { console.log(`base ref '${base}' not found (first commit?); skipping change checks`); process.exit(0); }
-
-// Materialise the base tree's agents/ into a temp dir so the same loaders/digest code can run on it.
 const tmp = mkdtempSync(join(tmpdir(), "registry-base-"));
-const baseAgents = join(tmp, "agents");
-mkdirSync(baseAgents);
-let baseFiles = [];
-try { baseFiles = git("ls-tree", "-r", "--name-only", base, "agents/").split("\n").filter(Boolean); } catch {}
-for (const f of baseFiles) {
-  const dest = join(tmp, f);
-  mkdirSync(join(dest, ".."), { recursive: true });
-  writeFileSync(dest, execFileSync("git", ["show", `${base}:${f}`], { cwd: REPO_ROOT, maxBuffer: 1 << 26 }));
-}
-
-const headDirs = listAgentDirs(join(REPO_ROOT, "agents"));
-const baseDirs = listAgentDirs(baseAgents);
-const slug = (d) => d.split("/").pop();
-const errors = [];
-const headSlugs = new Set(headDirs.map(slug));
-for (const b of baseDirs) if (!headSlugs.has(slug(b))) errors.push([slug(b), ["agent removed; agents are never deleted, set status: retired instead"]]);
-for (const h of headDirs) {
-  const b = baseDirs.find((x) => slug(x) === slug(h));
-  if (!b) continue;
-  const errs = checkAgentChange(loadAgent(b), loadAgent(h));
-  if (errs.length) errors.push([slug(h), errs]);
-}
-rmSync(tmp, { recursive: true, force: true });
-
-if (errors.length) {
-  for (const [s, es] of errors) { console.error(`FAIL ${s}`); es.forEach((e) => console.error(`  - ${e}`)); }
-  process.exit(1);
-}
-console.log(`change checks passed against ${base} (${headDirs.length} agents)`);
+let failed = false;
+try {
+  for (const [name, dir] of Object.entries(DOMAINS)) {
+    let files = [];
+    try { files = git(["ls-tree", "-r", "--name-only", base, `${dir}/`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).split("\n").filter(Boolean); } catch {}
+    for (const f of files) { const dest = join(tmp, f); mkdirSync(join(dest, ".."), { recursive: true }); writeFileSync(dest, git(["show", `${base}:${f}`])); }
+    const errs = checkDomainChange(loadDomain(join(tmp, dir)), loadDomain(join(REPO_ROOT, dir)));
+    if (errs.length) { failed = true; console.error(`FAIL ${name}`); errs.forEach((e) => console.error(`  - ${e}`)); }
+    else console.log(`ok   ${name}: immutability preserved vs ${base}`);
+  }
+} finally { rmSync(tmp, { recursive: true, force: true }); }
+if (failed) process.exit(1);

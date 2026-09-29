@@ -1,491 +1,848 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.zeptly.dev/registry-execution-agents/1.0/execution-agent.schema.json",
-  "title": "Zeptly Execution Agent definition",
-  "description": "Canonical declarative definition of an Execution Agent. Defines WHAT the agent is, never HOW/WHERE it runs.",
+  "$id": "https://schemas.zeptly.dev/registry-execution-agents/v1alpha1/execution-agent.schema.json",
+  "title": "ExecutionAgent artifact (Zeptly Registry Protocol v0.1 envelope)",
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema_version", "kind", "id", "name", "description", "purpose", "version", "status",
-    "owners", "provenance", "instructions", "contract", "model_policy", "execution_policy",
-    "timeout_policy", "retry_policy", "checkpoint_policy", "state", "security", "permissions",
-    "evaluation", "observability", "compatibility"
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec",
+    "references",
+    "provenance",
+    "security",
+    "attestations"
   ],
   "properties": {
-    "schema_version": { "const": "1.0" },
-    "kind": { "const": "ExecutionAgent" },
-    "id": { "$ref": "#/$defs/agentId" },
-    "name": { "type": "string", "minLength": 3, "maxLength": 80 },
-    "description": { "type": "string", "minLength": 10, "maxLength": 500 },
-    "purpose": {
+    "apiVersion": {
+      "const": "registry.zeptly.dev/v1alpha1"
+    },
+    "kind": {
+      "const": "ExecutionAgent"
+    },
+    "metadata": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["summary", "goals"],
       "properties": {
-        "summary": { "type": "string", "minLength": 10 },
-        "goals": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 3 } },
-        "non_goals": { "type": "array", "items": { "type": "string", "minLength": 3 } }
-      }
-    },
-    "version": { "$ref": "#/$defs/semver" },
-    "status": { "enum": ["draft", "candidate", "active", "deprecated", "retired"] },
-    "lifecycle": {
-      "type": "object",
-      "description": "Mutable lifecycle metadata. Excluded from the definition digest.",
-      "additionalProperties": false,
-      "properties": {
-        "status_reason": { "type": "string" },
-        "deprecated_at": { "type": "string", "format": "date" },
-        "sunset_at": { "type": "string", "format": "date" },
-        "replaced_by": { "$ref": "#/$defs/agentRef" }
-      }
-    },
-    "tags": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/label" } },
-    "owners": {
-      "type": "array", "minItems": 1,
-      "items": { "$ref": "#/$defs/principal" }
-    },
-    "provenance": { "$ref": "#/$defs/provenance" },
-    "instructions": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["file"],
-      "properties": {
-        "file": { "$ref": "#/$defs/relPath" },
-        "format": { "enum": ["markdown"], "default": "markdown" }
-      }
-    },
-    "contract": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["input", "output"],
-      "properties": {
-        "input": { "$ref": "#/$defs/schemaSource" },
-        "output": { "$ref": "#/$defs/schemaSource" },
-        "delivery": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "output_mode": { "enum": ["inline", "artifact_ref"], "default": "inline" },
-            "max_inline_bytes": { "type": "integer", "minimum": 1 }
-          }
+        "id": {
+          "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/id"
+        },
+        "version": {
+          "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/semver"
+        },
+        "registry": {
+          "const": "execution-agents"
+        },
+        "origin": {
+          "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/origin"
+        },
+        "maturity": {
+          "enum": [
+            "candidate",
+            "canonical"
+          ]
+        },
+        "lifecycle": {
+          "const": "active",
+          "description": "Lifecycle at publication. Effective lifecycle is the append-only overlay."
         }
-      }
+      },
+      "required": [
+        "id",
+        "version",
+        "registry",
+        "origin",
+        "maturity",
+        "lifecycle"
+      ]
     },
-    "skills": { "type": "array", "items": { "$ref": "#/$defs/skillBinding" } },
-    "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capabilityBinding" } },
-    "tools": { "type": "array", "items": { "$ref": "#/$defs/toolBinding" } },
-    "model_policy": {
+    "spec": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["tier", "aliases"],
       "properties": {
-        "tier": { "enum": ["fast", "balanced", "frontier"] },
-        "aliases": {
-          "type": "array", "minItems": 1,
-          "description": "Logical model aliases resolved by the Zeptly AI Gateway, in preference order. Never vendor endpoints or keys.",
-          "items": { "type": "string", "pattern": "^model\\.[a-z0-9]([a-z0-9.-]*[a-z0-9])?$" }
-        },
-        "required_features": {
-          "type": "array", "uniqueItems": true,
-          "items": { "enum": ["tool_use", "structured_output", "vision", "long_context", "reasoning"] }
-        },
-        "temperature": { "type": "number", "minimum": 0, "maximum": 2 },
-        "max_output_tokens": { "type": "integer", "minimum": 1 },
-        "budget": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "max_input_tokens_per_run": { "type": "integer", "minimum": 1 },
-            "max_output_tokens_per_run": { "type": "integer", "minimum": 1 },
-            "max_cost_usd_per_run": { "type": "number", "exclusiveMinimum": 0 }
-          }
-        }
-      }
-    },
-    "execution_policy": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["mode", "max_steps", "idempotency"],
-      "properties": {
-        "mode": { "enum": ["single_pass", "workflow", "agent_loop"] },
-        "max_steps": { "type": "integer", "minimum": 1, "maximum": 1000 },
-        "max_concurrent_tool_calls": { "type": "integer", "minimum": 1, "default": 1 },
-        "idempotency": { "enum": ["required", "best_effort", "none"] },
-        "triggers": {
-          "type": "array", "uniqueItems": true,
-          "items": { "enum": ["manual", "schedule", "event", "api", "orchestrator"] }
-        },
-        "human_in_the_loop": { "enum": ["never", "on_demand", "required_for_side_effects"], "default": "never" }
-      }
-    },
-    "timeout_policy": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["run_seconds"],
-      "properties": {
-        "run_seconds": { "type": "integer", "minimum": 1 },
-        "step_seconds": { "type": "integer", "minimum": 1 },
-        "tool_call_seconds": { "type": "integer", "minimum": 1 },
-        "on_timeout": { "enum": ["fail", "checkpoint_and_suspend"], "default": "fail" }
-      }
-    },
-    "retry_policy": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["max_attempts"],
-      "properties": {
-        "max_attempts": { "type": "integer", "minimum": 1, "maximum": 10 },
-        "backoff": { "enum": ["none", "fixed", "exponential"], "default": "exponential" },
-        "initial_delay_seconds": { "type": "number", "minimum": 0 },
-        "max_delay_seconds": { "type": "number", "minimum": 0 },
-        "retry_on": {
-          "type": "array", "uniqueItems": true,
-          "items": { "enum": ["transient_tool_error", "model_rate_limit", "model_overloaded", "timeout", "output_validation_failed"] }
-        },
-        "never_retry_on": {
-          "type": "array", "uniqueItems": true,
-          "items": { "enum": ["permission_denied", "policy_violation", "input_invalid", "approval_rejected"] }
-        }
-      }
-    },
-    "checkpoint_policy": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["strategy", "resumable"],
-      "properties": {
-        "strategy": { "enum": ["none", "per_step", "before_side_effects", "interval"] },
-        "interval_seconds": { "type": "integer", "minimum": 1 },
-        "resumable": { "type": "boolean" },
-        "capture": {
-          "type": "array", "uniqueItems": true,
-          "items": { "enum": ["context", "tool_calls", "state", "artifacts"] }
-        },
-        "rollback": {
-          "type": "object",
-          "description": "Non-destructive rollback: a rollback forks a new session from a checkpoint; prior lineage is preserved.",
-          "additionalProperties": false,
-          "required": ["supported"],
-          "properties": {
-            "supported": { "type": "boolean" },
-            "compensation": { "enum": ["none", "tool_declared", "manual"], "default": "none" }
-          }
-        }
-      }
-    },
-    "state": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["persistence"],
-      "properties": {
-        "persistence": { "enum": ["none", "run", "durable"] },
-        "stores": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["name", "kind"],
-            "properties": {
-              "name": { "$ref": "#/$defs/label" },
-              "kind": { "enum": ["kv", "document", "blob", "vector", "relational"] },
-              "scope": { "enum": ["run", "agent", "workspace"], "default": "run" },
-              "retention_days": { "type": "integer", "minimum": 0 },
-              "contains_pii": { "type": "boolean", "default": false }
-            }
-          }
-        }
-      }
-    },
-    "security": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["classification", "data_handling"],
-      "properties": {
-        "classification": { "enum": ["public", "internal", "confidential", "restricted"] },
-        "data_handling": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["processes_pii"],
-          "properties": {
-            "processes_pii": { "type": "boolean" },
-            "may_persist_inputs": { "type": "boolean", "default": false },
-            "redact_in_evidence": { "type": "boolean", "default": true },
-            "data_residency": { "type": "array", "items": { "type": "string", "pattern": "^[a-z]{2}(-[a-z0-9]+)?$" } }
-          }
-        },
-        "secret_refs": {
-          "type": "array", "uniqueItems": true,
-          "description": "Logical secret NAMES the runtime must inject. Never values.",
-          "items": { "type": "string", "pattern": "^secret\\.[a-z0-9]([a-z0-9._-]*[a-z0-9])?$" }
-        },
-        "review": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "security_review_required": { "type": "boolean" },
-            "reviewed_version": { "$ref": "#/$defs/semver" }
-          }
-        }
-      }
-    },
-    "permissions": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["scopes", "egress", "side_effects"],
-      "properties": {
-        "scopes": {
-          "type": "array", "uniqueItems": true,
-          "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*:(read|write|admin)$" }
-        },
-        "egress": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["mode"],
-          "properties": {
-            "mode": { "enum": ["none", "declared_capabilities_only"] }
-          }
-        },
-        "side_effects": { "enum": ["none", "reversible", "irreversible"] },
-        "approvals": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["before", "approver"],
-            "properties": {
-              "before": { "type": "string", "minLength": 3 },
-              "approver": { "enum": ["workspace_member", "workspace_admin", "owner_team"] }
-            }
-          }
-        }
-      }
-    },
-    "evaluation": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["suites", "promotion_gates"],
-      "properties": {
-        "suites": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["id", "file", "kind", "required"],
-            "properties": {
-              "id": { "$ref": "#/$defs/label" },
-              "file": { "$ref": "#/$defs/relPath" },
-              "kind": { "enum": ["golden", "regression", "safety", "cost", "latency", "human_review"] },
-              "required": { "type": "boolean" },
-              "min_pass_rate": { "type": "number", "minimum": 0, "maximum": 1 }
-            }
-          }
-        },
-        "promotion_gates": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["require_no_regression", "human_approval"],
-          "properties": {
-            "require_no_regression": { "type": "boolean" },
-            "human_approval": { "type": "boolean" },
-            "max_cost_increase_pct": { "type": "number", "minimum": 0 },
-            "max_latency_increase_pct": { "type": "number", "minimum": 0 },
-            "min_evaluated_runs": { "type": "integer", "minimum": 1 }
-          }
-        }
-      }
-    },
-    "observability": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["tracing", "evidence"],
-      "properties": {
-        "tracing": { "enum": ["off", "standard", "verbose"] },
-        "metrics": { "type": "array", "uniqueItems": true, "items": { "enum": ["latency", "cost", "tokens", "tool_calls", "retries", "outcome"] } },
-        "log_level": { "enum": ["error", "warn", "info", "debug"], "default": "info" },
-        "evidence": {
-          "type": "object",
-          "description": "What execution must record so that evidence can later justify (or refute) a candidate improvement. Tapes live outside Git; see docs/evidence-model.md.",
-          "additionalProperties": false,
-          "required": ["record_tape"],
-          "properties": {
-            "record_tape": { "type": "boolean" },
-            "tape_includes": { "type": "array", "uniqueItems": true, "items": { "enum": ["prompts", "model_outputs", "tool_calls", "tool_results", "checkpoints", "state_diffs"] } },
-            "retention_days": { "type": "integer", "minimum": 1 },
-            "sampling_rate": { "type": "number", "minimum": 0, "maximum": 1, "default": 1 }
-          }
-        }
-      }
-    },
-    "compatibility": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["runtime_contract"],
-      "properties": {
-        "runtime_contract": {
-          "type": "object",
-          "description": "Version range of the Execution Agent runtime contract (defined by Zeptly/runtime-trigger) this definition needs.",
-          "additionalProperties": false,
-          "required": ["min"],
-          "properties": {
-            "min": { "$ref": "#/$defs/semver" },
-            "max_exclusive": { "$ref": "#/$defs/semver" }
-          }
-        },
-        "skills_registry": { "type": "string", "pattern": "^[\\^~]?(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$" },
-        "required_runtime_features": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/label" } },
-        "supersedes": { "type": "array", "items": { "$ref": "#/$defs/agentRef" } }
-      }
-    },
-    "extensions": {
-      "type": "object",
-      "description": "Namespaced extension data (keys must start with 'x-'). Runtimes MUST ignore unknown extensions.",
-      "propertyNames": { "pattern": "^x-[a-z0-9-]+$" }
-    }
-  },
-  "$defs": {
-    "agentId": { "type": "string", "maxLength": 64, "pattern": "^exec\\.[a-z][a-z0-9]*(-[a-z0-9]+)*$" },
-    "skillId": { "type": "string", "pattern": "^skill\\.[a-z][a-z0-9]*(-[a-z0-9]+)*$" },
-    "capabilityId": { "type": "string", "pattern": "^cap\\.[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$" },
-    "toolId": { "type": "string", "pattern": "^tool\\.[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*$" },
-    "label": { "type": "string", "pattern": "^[a-z][a-z0-9]*([_-][a-z0-9]+)*$" },
-    "semver": { "type": "string", "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[0-9A-Za-z]+(\\.[0-9A-Za-z]+)*)?$" },
-    "versionSpec": {
-      "type": "string",
-      "description": "Exact version, or ^/~ range. Ranges are only permitted while status is draft or candidate.",
-      "pattern": "^[\\^~]?(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[0-9A-Za-z]+(\\.[0-9A-Za-z]+)*)?$"
-    },
-    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
-    "relPath": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$" },
-    "principal": {
-      "type": "string",
-      "description": "Namespaced identity: github:<user>, team:<slug>, agent:<id>, system:<name>.",
-      "pattern": "^(github|team|agent|system):[A-Za-z0-9._-]+$"
-    },
-    "agentRef": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "version"],
-      "properties": {
-        "id": { "$ref": "#/$defs/agentId" },
-        "version": { "$ref": "#/$defs/semver" },
-        "digest": { "$ref": "#/$defs/digest" }
-      }
-    },
-    "skillBinding": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "version"],
-      "properties": {
-        "id": { "$ref": "#/$defs/skillId" },
-        "version": { "$ref": "#/$defs/versionSpec" },
-        "digest": { "$ref": "#/$defs/digest" },
-        "required": { "type": "boolean", "default": true }
-      }
-    },
-    "capabilityBinding": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "reason"],
-      "properties": {
-        "id": { "$ref": "#/$defs/capabilityId" },
-        "version": { "$ref": "#/$defs/versionSpec" },
-        "required": { "type": "boolean", "default": true },
-        "reason": { "type": "string", "minLength": 5 }
-      }
-    },
-    "toolBinding": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "version"],
-      "properties": {
-        "id": { "$ref": "#/$defs/toolId" },
-        "version": { "$ref": "#/$defs/versionSpec" },
-        "required": { "type": "boolean", "default": true },
-        "capability": { "$ref": "#/$defs/capabilityId" },
-        "side_effects": { "enum": ["none", "reversible", "irreversible"], "default": "none" },
-        "requires_approval": { "type": "boolean", "default": false }
-      }
-    },
-    "schemaSource": {
-      "type": "object",
-      "description": "A JSON Schema (draft 2020-12), inline or in a file. Exactly one of schema/schema_file.",
-      "additionalProperties": false,
-      "oneOf": [{ "required": ["schema"] }, { "required": ["schema_file"] }],
-      "properties": {
-        "schema": { "type": "object" },
-        "schema_file": { "$ref": "#/$defs/relPath" }
-      }
-    },
-    "evidenceRef": {
-      "type": "object",
-      "description": "Pointer to execution evidence stored outside Git. See docs/evidence-model.md.",
-      "additionalProperties": false,
-      "required": ["id", "kind", "role", "uri", "summary"],
-      "properties": {
-        "id": { "$ref": "#/$defs/label" },
-        "kind": { "enum": ["session", "tape", "checkpoint", "eval_run", "trace", "artifact", "review", "incident"] },
-        "role": { "enum": ["motivates", "supports", "baseline", "regression", "approval"] },
-        "uri": {
+        "name": {
           "type": "string",
-          "description": "Logical locator resolved by runtime/Cortex. http(s) endpoints are forbidden.",
-          "pattern": "^(cortex|tape|evalrun|trace|artifact|git)://[A-Za-z0-9._~:/@#-]+$"
+          "minLength": 3,
+          "maxLength": 80
         },
-        "digest": { "$ref": "#/$defs/digest" },
-        "captured_at": { "type": "string", "format": "date-time" },
-        "agent_version": { "$ref": "#/$defs/semver" },
-        "summary": { "type": "string", "minLength": 5 }
+        "description": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 500
+        },
+        "purpose": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "summary": {
+              "type": "string",
+              "minLength": 10
+            },
+            "goals": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 3
+              }
+            },
+            "nonGoals": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 3
+              }
+            }
+          },
+          "required": [
+            "summary",
+            "goals"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/label"
+          }
+        },
+        "owners": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/principal"
+          }
+        },
+        "instructions": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "type": "string",
+              "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+            }
+          },
+          "required": [
+            "file"
+          ]
+        },
+        "contract": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "input": {
+              "type": "object",
+              "additionalProperties": false,
+              "oneOf": [
+                {
+                  "required": [
+                    "schema"
+                  ]
+                },
+                {
+                  "required": [
+                    "schemaFile"
+                  ]
+                }
+              ],
+              "properties": {
+                "schema": {
+                  "type": "object"
+                },
+                "schemaFile": {
+                  "type": "string",
+                  "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+                }
+              }
+            },
+            "output": {
+              "type": "object",
+              "additionalProperties": false,
+              "oneOf": [
+                {
+                  "required": [
+                    "schema"
+                  ]
+                },
+                {
+                  "required": [
+                    "schemaFile"
+                  ]
+                }
+              ],
+              "properties": {
+                "schema": {
+                  "type": "object"
+                },
+                "schemaFile": {
+                  "type": "string",
+                  "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+                }
+              }
+            },
+            "delivery": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "outputMode": {
+                  "enum": [
+                    "inline",
+                    "artifact_ref"
+                  ]
+                },
+                "maxInlineBytes": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "required": [
+            "input",
+            "output"
+          ]
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "ref": {
+                "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/platformReference"
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "capability": {
+                "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/platformReference"
+              },
+              "sideEffects": {
+                "enum": [
+                  "none",
+                  "reversible",
+                  "irreversible"
+                ]
+              },
+              "requiresApproval": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ref"
+            ]
+          }
+        },
+        "modelPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tier": {
+              "enum": [
+                "fast",
+                "balanced",
+                "frontier"
+              ]
+            },
+            "models": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/platformReference"
+              }
+            },
+            "requiredFeatures": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "tool_use",
+                  "structured_output",
+                  "vision",
+                  "long_context",
+                  "reasoning"
+                ]
+              }
+            },
+            "temperature": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2
+            },
+            "maxOutputTokens": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "budget": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "maxInputTokensPerRun": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "maxOutputTokensPerRun": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "maxCostUsdPerRun": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              }
+            }
+          },
+          "required": [
+            "tier",
+            "models"
+          ]
+        },
+        "executionPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "enum": [
+                "single_pass",
+                "workflow",
+                "agent_loop"
+              ]
+            },
+            "maxSteps": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            "maxConcurrentToolCalls": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "idempotency": {
+              "enum": [
+                "required",
+                "best_effort",
+                "none"
+              ]
+            },
+            "triggers": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "manual",
+                  "schedule",
+                  "event",
+                  "api",
+                  "orchestrator"
+                ]
+              }
+            },
+            "humanInTheLoop": {
+              "enum": [
+                "never",
+                "on_demand",
+                "required_for_side_effects"
+              ]
+            }
+          },
+          "required": [
+            "mode",
+            "maxSteps",
+            "idempotency"
+          ]
+        },
+        "timeoutPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "runSeconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "stepSeconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "toolCallSeconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "onTimeout": {
+              "enum": [
+                "fail",
+                "checkpoint_and_suspend"
+              ]
+            }
+          },
+          "required": [
+            "runSeconds"
+          ]
+        },
+        "retryPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxAttempts": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            "backoff": {
+              "enum": [
+                "none",
+                "fixed",
+                "exponential"
+              ]
+            },
+            "initialDelaySeconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "maxDelaySeconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "retryOn": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "transient_tool_error",
+                  "model_rate_limit",
+                  "model_overloaded",
+                  "timeout",
+                  "output_validation_failed"
+                ]
+              }
+            },
+            "neverRetryOn": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "permission_denied",
+                  "policy_violation",
+                  "input_invalid",
+                  "approval_rejected"
+                ]
+              }
+            }
+          },
+          "required": [
+            "maxAttempts"
+          ]
+        },
+        "checkpointPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "strategy": {
+              "enum": [
+                "none",
+                "per_step",
+                "before_side_effects",
+                "interval"
+              ]
+            },
+            "intervalSeconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "resumable": {
+              "type": "boolean"
+            },
+            "capture": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "context",
+                  "tool_calls",
+                  "state",
+                  "artifacts"
+                ]
+              }
+            },
+            "rollback": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "supported": {
+                  "type": "boolean"
+                },
+                "compensation": {
+                  "enum": [
+                    "none",
+                    "tool_declared",
+                    "manual"
+                  ]
+                }
+              },
+              "required": [
+                "supported"
+              ]
+            }
+          },
+          "required": [
+            "strategy",
+            "resumable"
+          ]
+        },
+        "state": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "persistence": {
+              "enum": [
+                "none",
+                "run",
+                "durable"
+              ]
+            },
+            "stores": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/label"
+                  },
+                  "kind": {
+                    "enum": [
+                      "kv",
+                      "document",
+                      "blob",
+                      "vector",
+                      "relational"
+                    ]
+                  },
+                  "scope": {
+                    "enum": [
+                      "run",
+                      "agent",
+                      "workspace"
+                    ]
+                  },
+                  "retentionDays": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "containsPii": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "name",
+                  "kind"
+                ]
+              }
+            }
+          },
+          "required": [
+            "persistence"
+          ]
+        },
+        "dataHandling": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "processesPii": {
+              "type": "boolean"
+            },
+            "mayPersistInputs": {
+              "type": "boolean"
+            },
+            "redactInEvidence": {
+              "type": "boolean"
+            },
+            "dataResidency": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z]{2}(-[a-z0-9]+)*$"
+              }
+            }
+          },
+          "required": [
+            "processesPii"
+          ]
+        },
+        "secrets": {
+          "type": "array",
+          "description": "Secret NAMES the runtime must inject; never values.",
+          "items": {
+            "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/platformReference"
+          }
+        },
+        "permissions": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "scopes": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*:(read|write|admin)$"
+              }
+            },
+            "egress": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "mode": {
+                  "enum": [
+                    "none",
+                    "declared_capabilities_only"
+                  ]
+                }
+              },
+              "required": [
+                "mode"
+              ]
+            },
+            "sideEffects": {
+              "enum": [
+                "none",
+                "reversible",
+                "irreversible"
+              ]
+            },
+            "runtimeApprovals": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "before": {
+                    "type": "string",
+                    "minLength": 3
+                  },
+                  "approver": {
+                    "enum": [
+                      "workspace_member",
+                      "workspace_admin",
+                      "owner_team"
+                    ]
+                  }
+                },
+                "required": [
+                  "before",
+                  "approver"
+                ]
+              }
+            }
+          },
+          "required": [
+            "scopes",
+            "egress",
+            "sideEffects"
+          ]
+        },
+        "evaluation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "suites": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/label"
+                  },
+                  "file": {
+                    "type": "string",
+                    "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+                  },
+                  "kind": {
+                    "enum": [
+                      "golden",
+                      "regression",
+                      "safety",
+                      "cost",
+                      "latency",
+                      "human_review"
+                    ]
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "minPassRate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "required": [
+                  "id",
+                  "file",
+                  "kind",
+                  "required"
+                ]
+              }
+            },
+            "promotionGates": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "requireNoRegression": {
+                  "type": "boolean"
+                },
+                "humanApproval": {
+                  "type": "boolean"
+                },
+                "maxCostIncreasePct": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "maxLatencyIncreasePct": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "minEvaluatedRuns": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "requireNoRegression",
+                "humanApproval"
+              ]
+            }
+          },
+          "required": [
+            "suites",
+            "promotionGates"
+          ]
+        },
+        "observability": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tracing": {
+              "enum": [
+                "off",
+                "standard",
+                "verbose"
+              ]
+            },
+            "metrics": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "latency",
+                  "cost",
+                  "tokens",
+                  "tool_calls",
+                  "retries",
+                  "outcome"
+                ]
+              }
+            },
+            "logLevel": {
+              "enum": [
+                "error",
+                "warn",
+                "info",
+                "debug"
+              ]
+            },
+            "evidence": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "recordTape": {
+                  "type": "boolean"
+                },
+                "tapeIncludes": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "items": {
+                    "enum": [
+                      "prompts",
+                      "model_outputs",
+                      "tool_calls",
+                      "tool_results",
+                      "checkpoints",
+                      "state_diffs"
+                    ]
+                  }
+                },
+                "retentionDays": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "samplingRate": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "required": [
+                "recordTape"
+              ]
+            }
+          },
+          "required": [
+            "tracing",
+            "evidence"
+          ]
+        },
+        "compatibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "requiredRuntimeFeatures": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/label"
+              }
+            }
+          }
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "purpose",
+        "owners",
+        "instructions",
+        "contract",
+        "modelPolicy",
+        "executionPolicy",
+        "timeoutPolicy",
+        "retryPolicy",
+        "checkpointPolicy",
+        "state",
+        "dataHandling",
+        "permissions",
+        "evaluation",
+        "observability"
+      ]
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/reference"
       }
     },
     "provenance": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["origin", "authors", "created_at", "change_ref"],
-      "properties": {
-        "origin": { "enum": ["human_authored", "imported", "derived", "candidate_mutation"] },
-        "authors": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/principal" } },
-        "created_at": { "type": "string", "format": "date" },
-        "change_ref": {
-          "type": "string",
-          "description": "Why this version exists: 'bootstrap', or 'github:<owner>/<repo>#<n>' for the PR that introduced it.",
-          "pattern": "^(bootstrap|github:[A-Za-z0-9._-]+/[A-Za-z0-9._-]+#[0-9]+)$"
-        },
-        "derived_from": { "$ref": "#/$defs/agentRef" },
-        "source": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["origin_ref"],
-          "properties": {
-            "origin_ref": { "type": "string", "minLength": 3 },
-            "license": { "type": "string" }
-          }
-        },
-        "mutation": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["kind", "rationale", "proposer"],
-          "properties": {
-            "kind": { "enum": ["prompt_edit", "policy_tuning", "skill_change", "model_change", "contract_change", "other"] },
-            "rationale": { "type": "string", "minLength": 10 },
-            "proposer": { "$ref": "#/$defs/principal" },
-            "expected_effect": { "type": "string" }
-          }
-        },
-        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidenceRef" } }
-      },
-      "allOf": [
-        {
-          "if": { "properties": { "origin": { "enum": ["derived", "candidate_mutation"] } }, "required": ["origin"] },
-          "then": { "required": ["derived_from"] }
-        },
-        {
-          "if": { "properties": { "origin": { "const": "candidate_mutation" } }, "required": ["origin"] },
-          "then": { "required": ["mutation", "evidence"] }
-        },
-        {
-          "if": { "properties": { "origin": { "const": "imported" } }, "required": ["origin"] },
-          "then": { "required": ["source"] }
-        }
-      ]
+      "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/provenance"
+    },
+    "security": {
+      "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/security"
+    },
+    "attestations": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/attestation"
+      }
     }
   }
 }

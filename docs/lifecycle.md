@@ -1,24 +1,22 @@
 # Lifecycle
 
-> **PROVISIONAL — pending [cross-registry reconciliation](cross-registry-reconciliation.md).** The candidate-as-Git-branch model (`candidate` cannot merge) is provisional; other registries may hold candidates in registry data.
+Lifecycle is an **append-only overlay**, independent of maturity and origin. `metadata.lifecycle` in the artifact records the state at publication (`active`); the effective state is the last overlay event for that exact `(id, version, digest)`, defaulting to `active`.
 
+```yaml
+# registry/lifecycle/support.ticket-triage.yaml
+apiVersion: registry.zeptly.dev/v1alpha1
+kind: LifecycleOverlay
+subject: { registry: execution-agents, id: support.ticket-triage }
+events:
+  - { version: 1.0.0, digest: sha256:…, state: deprecated, at: "2026-10-01T00:00:00Z", actor: team:x, reason: superseded, supersededBy: {registry: execution-agents, id: support.ticket-triage, version: 1.1.0} }
 ```
-draft ──► candidate ──► active ──► deprecated ──► retired
-  │           │           ▲            │
-  │           └──► draft  └────────────┘ (re-activate)
-  └──────────────────────► active (first release)
-```
 
-| Status | Meaning | Runtime resolvable | Notes |
-|---|---|---|---|
-| `draft` | Being incubated | No | May use version ranges; no ledger entry |
-| `candidate` | Proposed improvement awaiting evaluation/review | No | **Branch/PR only — CI merge-gate blocks merging** |
-| `active` | Canonical, production-eligible | Yes | Requires ledger entry, exact pins, required eval suite, tracing on |
-| `deprecated` | Still resolvable, discouraged | Yes (warn) | Needs `lifecycle.status_reason`; may set `replaced_by`, `sunset_at` |
-| `retired` | No longer runnable | No | Terminal; needs `status_reason`; directory kept for history |
+| From | To |
+|---|---|
+| active | deprecated, revoked |
+| deprecated | active, revoked |
+| revoked | (terminal) |
 
-Legal transitions are encoded in `scripts/lib/changes.mjs` (`TRANSITIONS`) and enforced against the base branch. Agents are never deleted.
+`deprecated` and `revoked` require a `reason`. Events must be chronological and each must match an existing artifact's digest. Existing events are never edited, removed or reordered (`check-changes`). Overlays apply to candidates too (e.g. revoking a rejected candidate); artifacts are never deleted.
 
-`candidate` is a *change proposal state*, not a deployment state: main only ever contains `draft`, `active`, `deprecated`, `retired`. A promoted candidate merges as a new `active` version; the prior version stays in history and in the ledger (and stays resolvable unless deprecated).
-
-Status changes do not alter the digest and need no version bump, but are still reviewed PRs.
+Indexes report the effective lifecycle; resolvers should refuse `revoked`, warn on `deprecated`.

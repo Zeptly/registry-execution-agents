@@ -1,8 +1,0 @@
-schema_version: "1.0"
-agent: exec.support-ticket-triage
-releases:
-  - version: 1.0.0
-    digest: sha256:869251170e2c790885dd572dfa08499bfea559de6612973336a270370de908df
-    released_at: 2026-09-29
-    change_ref: bootstrap
-    git_tag: exec.support-ticket-triage@1.0.0

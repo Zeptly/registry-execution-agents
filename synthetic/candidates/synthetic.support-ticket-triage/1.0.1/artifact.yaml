@@ -1,0 +1,204 @@
+apiVersion: registry.zeptly.dev/v1alpha1
+kind: ExecutionAgent
+metadata:
+  id: synthetic.support-ticket-triage
+  version: 1.0.1
+  registry: execution-agents
+  origin:
+    type: evolved
+    evolution:
+      kind: refined
+      sourceRefs:
+        - registry: execution-agents
+          id: synthetic.support-ticket-triage
+          version: 1.0.0
+          digest: sha256:5a6a88ab2f976c457d6c6ae5dfff323f748a25e2938c75cdf7bf6b416441d7d7
+        - evidence: evidence://synthetic/sessions/support-ticket-triage/batch-1
+          digest: sha256:0000000000000000000000000000000000000000000000000000000000000001
+          role: motivates
+          summary: 14 sessions where non-ticket input produced priority normal and 2 tool
+            calls.
+        - evidence: evidence://synthetic/evaluation/support-ticket-triage/1.0.0/golden-triage/baseline
+          role: baseline
+          summary: Baseline golden-triage pass rate 0.93.
+      rationale: Empty or non-ticket inputs were sometimes given priority normal and
+        triggered needless knowledge searches.
+      proposer: agent:synthetic-evolution-proposer
+      expectedEffect: Fewer wasted tool calls and lower cost on non-ticket inputs; no
+        change to other categories.
+  maturity: candidate
+  lifecycle: active
+spec:
+  name: Support Ticket Triage
+  description: Classifies an inbound support ticket, assigns priority and routing,
+    and drafts an internal summary.
+  purpose:
+    summary: Turn a raw support ticket into a structured triage decision so humans
+      can act on it faster.
+    goals:
+      - Classify the ticket category and urgency.
+      - Recommend a routing queue with a short justification.
+      - Produce a neutral internal summary of at most 80 words.
+    nonGoals:
+      - Replying to the customer.
+      - Modifying the ticket or any customer record.
+  tags:
+    - support
+    - classification
+  owners:
+    - team:support-platform
+  instructions:
+    file: prompts/system.md
+  contract:
+    input:
+      schemaFile: contracts/input.schema.json
+    output:
+      schemaFile: contracts/output.schema.json
+    delivery:
+      outputMode: inline
+      maxInlineBytes: 16384
+  executionPolicy:
+    mode: workflow
+    maxSteps: 8
+    idempotency: required
+    triggers:
+      - event
+      - api
+      - orchestrator
+    humanInTheLoop: never
+  timeoutPolicy:
+    runSeconds: 120
+    stepSeconds: 45
+    toolCallSeconds: 20
+    onTimeout: fail
+  retryPolicy:
+    maxAttempts: 3
+    backoff: exponential
+    initialDelaySeconds: 2
+    maxDelaySeconds: 30
+    retryOn:
+      - transient_tool_error
+      - model_rate_limit
+      - model_overloaded
+      - output_validation_failed
+    neverRetryOn:
+      - permission_denied
+      - policy_violation
+      - input_invalid
+  checkpointPolicy:
+    strategy: per_step
+    resumable: true
+    capture:
+      - context
+      - tool_calls
+    rollback:
+      supported: true
+      compensation: none
+  state:
+    persistence: run
+  evaluation:
+    suites:
+      - id: golden-triage
+        file: evals/golden-triage.yaml
+        kind: golden
+        required: true
+        minPassRate: 0.9
+    promotionGates:
+      requireNoRegression: true
+      humanApproval: true
+      maxCostIncreasePct: 20
+      maxLatencyIncreasePct: 25
+      minEvaluatedRuns: 50
+  observability:
+    tracing: standard
+    metrics:
+      - latency
+      - cost
+      - tokens
+      - tool_calls
+      - retries
+      - outcome
+    logLevel: info
+    evidence:
+      recordTape: true
+      tapeIncludes:
+        - prompts
+        - model_outputs
+        - tool_calls
+        - tool_results
+        - checkpoints
+      retentionDays: 90
+      samplingRate: 1
+  modelPolicy:
+    tier: fast
+    requiredFeatures:
+      - structured_output
+      - tool_use
+    temperature: 0.1
+    maxOutputTokens: 1024
+    budget:
+      maxCostUsdPerRun: 0.05
+    models:
+      - registry: models
+        id: fast-default
+      - registry: models
+        id: balanced-default
+  tools:
+    - ref:
+        registry: tools
+        id: knowledge-search
+        version: 1.1.0
+      capability:
+        registry: capabilities
+        id: knowledge.search
+        version: 1.0.0
+  dataHandling:
+    processesPii: true
+    mayPersistInputs: false
+    redactInEvidence: true
+  permissions:
+    scopes:
+      - knowledge:read
+    egress:
+      mode: declared_capabilities_only
+    sideEffects: none
+  compatibility:
+    requiredRuntimeFeatures:
+      - checkpointing
+      - structured-output
+references:
+  - registry: skills
+    id: ticket-classification
+    version: 1.2.0
+    digest: sha256:1c051591a257f64be506f9d07a984b2bd0c9a184ed5dd4aa9bf9e3d7e23ca9b6
+  - registry: skills
+    id: concise-summarization
+    version: 2.0.1
+    digest: sha256:1b5f61d254800a7a6d3e767b47c0b2dbd8fbf8a231082e69fcb42ee02d6e0b93
+provenance:
+  createdAt: 2026-09-29T00:00:00Z
+  authors:
+    - github:zeptly-bootstrap
+  sourceRefs:
+    - registry: execution-agents
+      id: synthetic.support-ticket-triage
+      version: 1.0.0
+      digest: sha256:5a6a88ab2f976c457d6c6ae5dfff323f748a25e2938c75cdf7bf6b416441d7d7
+  transformations:
+    - type: prompt-edit
+      description: Skip knowledge search for inputs that are not support requests.
+      actor: agent:synthetic-evolution-proposer
+security:
+  classification: internal
+  capabilities:
+    - registry: capabilities
+      id: knowledge.search
+      version: 1.0.0
+  approvals: []
+attestations:
+  - type: evaluation
+    ref: evidence://synthetic/evaluation/support-ticket-triage/1.0.1/golden-triage
+    subjectDigest: sha256:b55f2cca20406aa7a1d89d089590d934058707d102b2c3a4d28fcf4e59fd5eeb
+    issuedAt: 2026-09-29T13:15:52.311Z
+    suite: golden-triage
+    attestor: system:synthetic-eval-harness

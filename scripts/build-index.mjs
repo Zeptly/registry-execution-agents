@@ -1,28 +1,26 @@
 #!/usr/bin/env node
-// Emit dist/registry-index.json: a generated, machine-readable catalogue for runtimes. Not committed.
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join, relative } from "node:path";
-import { REPO_ROOT, listAgentDirs, loadAgent, definitionDigest } from "./lib/registry.mjs";
-import { compare } from "./lib/semver.mjs";
+// Build deterministic indexes: registry/index.json (production) and synthetic/index.json (synthetic).
+// usage: node scripts/build-index.mjs [--check]   (--check fails if committed indexes differ or are non-deterministic)
+import { writeFileSync, readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { makeValidators, loadDomain, fmtErrors, DOMAINS, REPO_ROOT } from "./lib/core.mjs";
+import { buildIndex } from "./lib/index.mjs";
 
-const agents = listAgentDirs(join(REPO_ROOT, "agents")).map((dir) => {
-  const { manifest: m, releases } = loadAgent(dir);
-  return {
-    id: m.id, name: m.name, description: m.description, status: m.status, version: m.version,
-    digest: definitionDigest(m, dir),
-    resolvable: ["active", "deprecated"].includes(m.status),
-    path: relative(REPO_ROOT, dir),
-    classification: m.security.classification,
-    runtime_contract: m.compatibility.runtime_contract,
-    skills: (m.skills ?? []).map(({ id, version }) => ({ id, version })),
-    capabilities: (m.capabilities ?? []).map(({ id, version }) => ({ id, ...(version && { version }) })),
-    tools: (m.tools ?? []).map(({ id, version }) => ({ id, version })),
-    replaced_by: m.lifecycle?.replaced_by ?? null,
-    releases: (releases?.releases ?? []).map(({ version, digest, git_tag }) => ({ version, digest, git_tag }))
-      .sort((a, b) => compare(a.version, b.version)),
-  };
-}).sort((a, b) => a.id.localeCompare(b.id));
-
-mkdirSync(join(REPO_ROOT, "dist"), { recursive: true });
-writeFileSync(join(REPO_ROOT, "dist/registry-index.json"), JSON.stringify({ schema_version: "1.0", agents }, null, 2) + "\n");
-console.log(`wrote dist/registry-index.json (${agents.length} agents)`);
+const check = process.argv.includes("--check");
+const v = makeValidators();
+let failed = false;
+for (const [name, dir] of Object.entries(DOMAINS)) {
+  const domain = loadDomain(join(REPO_ROOT, dir));
+  const idx = buildIndex(domain, name);
+  const again = buildIndex(loadDomain(join(REPO_ROOT, dir)), name);
+  const text = JSON.stringify(idx, null, 2) + "\n";
+  if (text !== JSON.stringify(again, null, 2) + "\n") { console.error(`${name}: index is not deterministic`); failed = true; }
+  if (!v.index(idx)) { console.error(`${name}: index invalid: ${fmtErrors(v.index.errors).join("; ")}`); failed = true; }
+  if (name === "production" && idx.entries.some((e) => e.id.startsWith("synthetic."))) { console.error("production index contains synthetic entries"); failed = true; }
+  const path = join(REPO_ROOT, dir, "index.json");
+  if (check) {
+    if (!existsSync(path) || readFileSync(path, "utf8") !== text) { console.error(`${dir}/index.json is out of date; run: npm run build:index`); failed = true; }
+    else console.log(`ok   ${dir}/index.json (${idx.entries.length} entries)`);
+  } else { writeFileSync(path, text); console.log(`wrote ${dir}/index.json (${idx.entries.length} entries)`); }
+}
+if (failed) process.exit(1);

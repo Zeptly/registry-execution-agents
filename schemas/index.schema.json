@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.zeptly.dev/registry/v1alpha1/index.schema.json",
+  "title": "Generated registry index (deterministic derived data)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "registry", "domain", "entries"],
+  "properties": {
+    "apiVersion": { "const": "registry.zeptly.dev/v1alpha1" },
+    "kind": { "const": "RegistryIndex" },
+    "registry": { "const": "execution-agents" },
+    "domain": { "enum": ["production", "synthetic"] },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "id", "version", "digest", "maturity", "lifecycle", "origin", "location"],
+        "properties": {
+          "kind": { "const": "ExecutionAgent" },
+          "id": { "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/id" },
+          "version": { "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/semver" },
+          "digest": { "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/digest" },
+          "maturity": { "enum": ["candidate", "canonical"] },
+          "lifecycle": { "enum": ["active", "deprecated", "revoked"] },
+          "origin": {
+            "type": "object", "additionalProperties": false, "required": ["type"],
+            "properties": { "type": { "enum": ["authored", "imported", "evolved"] }, "evolutionKind": { "type": "string" } }
+          },
+          "location": { "type": "string" }
+        }
+      }
+    }
+  }
+}

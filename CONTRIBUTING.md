@@ -1,16 +1,17 @@
 # Contributing
 
-1. Read [architecture](docs/architecture.md), [agent definition](docs/agent-definition.md) and [versioning](docs/versioning.md).
-2. Work on a branch; never push to `main`.
-3. Run `npm ci && npm run ci` and, against your base, `node scripts/check-changes.mjs --base origin/main`.
-4. Open a PR using the template. Keep one agent (or one concern) per PR.
+1. Read [architecture](docs/architecture.md), [artifact model](docs/artifact-model.md) and [sealing & versioning](docs/sealing-and-versioning.md).
+2. Work on a branch; never push to `main` directly. Branches/PRs are governance transport only.
+3. `npm ci && npm run ci`; against your base also run `node scripts/check-changes.mjs --base origin/main`.
+4. Keep one identity/concern per PR.
 
 ## Rules
-- **Never edit a released version.** Bump the version, update `CHANGELOG.md`, record the release (`npm run release -- exec.<slug> …`).
-- **Never edit or reorder `releases.yaml` entries**; append only (via the script).
-- **No endpoints, credentials, raw prompts/transcripts/tapes or customer data.** Use logical names and evidence pointers.
-- Dependencies are `id` + version; released agents pin exact versions.
-- Security/permission expansion: bump at least minor and set `security.review.security_review_required: true`.
-- Candidate mutations must include provenance, mutation rationale and evidence refs, and cannot merge as `candidate`.
-- Changes to `schemas/`, `scripts/` and `.github/` need registry-maintainer + security review; add/adjust tests in `test/`.
-- Commit messages: imperative, scoped (`triage: tighten non-ticket handling`).
+
+- **Never edit a sealed version.** Create a new version directory, `seal` it, and attach attestations.
+- Attestations, approvals and lifecycle events are **append-only**.
+- New agents and evolutions enter as **candidates**; promotion uses `scripts/promote.mjs` and requires digest-bound evaluation and security-review attestations plus a governed approval.
+- Canonical artifacts pin references by exact version **and** digest.
+- **No endpoints, credentials, tapes, transcripts or customer data.** Use structured references and `evidence://` pointers.
+- Examples and fixtures live in `synthetic/` with `synthetic.` ids and can never be referenced from `registry/`.
+- After changing artifacts or overlays run `npm run build:index` and commit the indexes (CI verifies them).
+- Changes to `schemas/`, `scripts/` and `.github/` need registry-maintainer and security review, plus tests in `test/`.

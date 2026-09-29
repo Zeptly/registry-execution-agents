@@ -1,0 +1,18 @@
+apiVersion: registry.zeptly.dev/v1alpha1
+kind: Seal
+subject:
+  registry: execution-agents
+  id: synthetic.weekly-metrics-digest
+  version: 1.0.0
+algorithm: sha256
+digest: sha256:c901c86ba850afd2ae01a6da9a0bb8109f614d0e6885d078b9f2fe4a14cdb33c
+artifactDigest: sha256:5aec79d8ddfbd97a9381af901fa66de6e99dce5fd7acdaa74cc9bd0203f78ae7
+excludedFields:
+  - metadata.maturity
+  - attestations
+  - security.approvals
+files:
+  contracts/input.schema.json: sha256:4e33f1c9db3778c17e17e1eeadf0429589a68747aa66ff4d1f02dede6f2d88b7
+  contracts/output.schema.json: sha256:6a0dfcf07377f2b74244f4855fde7d6a214ef2f69f2867e24b12bc45c61c8357
+  evals/golden-digest.yaml: sha256:7634801047f914281efb8aa3dbac5f0cafd930c5f064a37b8955b1c3565000ca
+  prompts/system.md: sha256:e95f6fe87ec48f2323f0c48653a368328a64545fce6188a9ac617b765d31530d
