@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { stringify, parse } from "yaml";
 import { REPO_ROOT, makeValidators, loadDomain, computeSeal, canonicalJson, compareCodePoints, DOMAINS } from "../scripts/lib/core.mjs";
 import { scanVersionDir, LIMITS } from "../scripts/lib/files.mjs";
+import { parseYamlStrict, isUnsafeIntegerLiteral } from "../scripts/lib/yaml.mjs";
 import { validateDomain } from "../scripts/lib/rules.mjs";
 import { checkDomainChange } from "../scripts/lib/changes.mjs";
 import { buildIndex } from "../scripts/lib/index.mjs";
@@ -33,7 +34,7 @@ function seal(dir, { gates = true } = {}) {
   wr(join(dir, "seal.yaml"), s);
   if (gates) {
     a.attestations = [
-      ...a.spec.evaluation.suites.filter((x) => x.required).map((x) => ({ type: "evaluation", suite: x.id, ref: "evidence://t/eval", subjectDigest: s.digest })),
+      ...a.spec.evaluation.suites.filter((x) => x.required).map((x) => ({ type: "evaluation", suite: x.id, result: "pass", ref: "evidence://t/eval", subjectDigest: s.digest })),
       { type: "security-review", ref: "evidence://t/sec", subjectDigest: s.digest },
     ];
     a.security.approvals = [{ type: "promotion", approver: "team:x", approvedAt: "2026-01-01T00:00:00Z", subjectDigest: s.digest }];
@@ -446,4 +447,235 @@ test("synthetic evidence pointers are required in the synthetic domain and forbi
   const evolved = join(tmp(), "synthetic"); cpSync(SYN, evolved, { recursive: true });
   edit(join(evolved, "candidates/synthetic.support-ticket-triage/1.0.1"), (a) => { a.metadata.origin.evolution.sourceRefs.find((r) => r.evidence).evidence = "evidence://live/sessions/1"; });
   assert.match(errsOf(evolved, "synthetic"), /origin\.evolution\.sourceRefs\[\d\]\.evidence: synthetic artifacts may only use/);
+});
+
+// ============================================================================================================
+// Local defect remediation: evaluation results, lifecycle eligibility, strict text/number input, case collisions
+// ============================================================================================================
+const emptyDomain = () => { const root = join(tmp(), "registry"); for (const d of ["canonical", "candidates", "lifecycle"]) mkdirSync(join(root, d), { recursive: true }); return root; };
+/** A sealed object derived from the TRIAGE fixture under any id/version/tree. Canonical objects get full explicit-pass gates. */
+function mkObject(root, tree, id, version, mutate, gates = tree === "canonical") {
+  const dir = join(root, tree, id, version);
+  mkdirSync(join(root, tree, id), { recursive: true });
+  cpSync(TRIAGE, dir, { recursive: true }); rmSync(join(dir, "seal.yaml"));
+  const a = rd(join(dir, "artifact.yaml"));
+  a.metadata.id = id; a.metadata.version = version; a.metadata.maturity = tree === "canonical" ? "canonical" : "candidate";
+  mutate?.(a);
+  wr(join(dir, "artifact.yaml"), a);
+  return { dir, digest: seal(dir, { gates }) };
+}
+const writeOverlay = (root, id, events) => wr(join(root, "lifecycle", `${id}.yaml`), { apiVersion: "registry.zeptly.dev/v1alpha1", kind: "LifecycleOverlay", subject: { registry: "execution-agents", id }, events });
+const lifeEvent = (version, digest, state, at = "2026-02-01T00:00:00Z") => ({ version, digest, state, at, actor: "team:x", ...(state === "active" ? {} : { reason: "test reason" }) });
+const dep = (id, version, digest) => (a) => { a.references.push({ registry: "execution-agents", id, version, digest: digest ?? null }); };
+
+// ---- 1. promotion requires an explicit passing evaluation result bound to the current digest
+function evalDomain(results) {
+  const d = prodDomain();
+  edit(d.dir, (a) => {
+    a.attestations = a.attestations.filter((x) => x.type !== "evaluation");
+    for (const r of results) a.attestations.push({ type: "evaluation", suite: "golden-triage", ref: "evidence://t/eval", subjectDigest: d.digest, ...(r === "unspecified" ? {} : { result: r }) });
+  });
+  return d;
+}
+test("evaluation gate: explicit pass satisfies; missing, unspecified, inconclusive and failed results do not", () => {
+  assert.equal(errsOf(evalDomain(["pass"]).root), "");
+  assert.match(errsOf(evalDomain([]).root), /lacks a digest-bound 'evaluation' attestation for required suite 'golden-triage'/);
+  assert.match(errsOf(evalDomain(["unspecified"]).root), /no passing evaluation result.*unspecified/);
+  assert.match(errsOf(evalDomain(["inconclusive"]).root), /no passing evaluation result.*inconclusive/);
+  assert.match(errsOf(evalDomain(["fail"]).root), /failing evaluation result.*blocks promotion/);
+});
+
+test("evaluation gate: a failure blocks even beside a pass; a later pass after inconclusive/unspecified satisfies", () => {
+  assert.match(errsOf(evalDomain(["pass", "fail"]).root), /failing evaluation result/);
+  assert.match(errsOf(evalDomain(["fail", "pass"]).root), /failing evaluation result/);
+  assert.equal(errsOf(evalDomain(["inconclusive", "pass"]).root), "");
+  assert.equal(errsOf(evalDomain(["unspecified", "pass"]).root), "");
+});
+
+test("evaluation gate: the pass must be bound to the current digest and to the required suite", () => {
+  const d = evalDomain(["pass"]);
+  edit(d.dir, (a) => { a.attestations.find((x) => x.type === "evaluation").subjectDigest = "sha256:" + "d".repeat(64); });
+  const out = errsOf(d.root);
+  assert.match(out, /is stale/); assert.match(out, /lacks a digest-bound 'evaluation' attestation/);
+  const e = evalDomain(["pass"]);
+  edit(e.dir, (a) => { a.attestations.find((x) => x.type === "evaluation").suite = "other-suite"; });
+  assert.match(errsOf(e.root), /lacks a digest-bound 'evaluation' attestation for required suite 'golden-triage'/);
+});
+
+test("evaluation result schema: enum enforced; 'result' only valid on evaluation attestations", () => {
+  const d = evalDomain(["pass"]);
+  edit(d.dir, (a) => { a.attestations.find((x) => x.type === "evaluation").result = "passed"; });
+  assert.match(errsOf(d.root), /artifact\.yaml: .*attestations\/\d+\/result/);
+  const e = evalDomain(["pass"]);
+  edit(e.dir, (a) => { a.attestations.find((x) => x.type === "security-review").result = "pass"; });
+  assert.match(errsOf(e.root), /'result' is only valid on 'evaluation' attestations/);
+});
+
+test("evaluation gate does not apply to candidates; shipped synthetic fixtures model pass, inconclusive and fail explicitly", () => {
+  const root = emptyDomain();
+  mkObject(root, "candidates", "support.cand", "1.0.0", (a) => { a.attestations = []; }, false);
+  edit(join(root, "candidates/support.cand/1.0.0"), (a) => { a.attestations = [{ type: "evaluation", suite: "golden-triage", result: "fail", ref: "evidence://t/x", subjectDigest: rd(join(root, "candidates/support.cand/1.0.0/seal.yaml")).digest }]; });
+  assert.equal(errsOf(root), "");
+  const res = (dir) => rd(join(dir, "artifact.yaml")).attestations.filter((x) => x.type === "evaluation").map((x) => x.result ?? "unspecified");
+  assert.deepEqual(res(TRIAGE), ["unspecified", "pass"]);
+  assert.deepEqual(res(join(SYN, "candidates/synthetic.contract-clause-extractor/0.1.0")), ["inconclusive", "fail"]);
+  assert.match(errsOf(SYN, "synthetic"), /^$/); // the shipped synthetic domain validates
+});
+
+// ---- 2. lifecycle eligibility of executable local dependencies (separate cases)
+function depWorld() {
+  const root = emptyDomain();
+  const d1 = mkObject(root, "canonical", "support.dep", "1.0.0");
+  return { root, d1 };
+}
+test("lifecycle: an active exact pin resolves", () => {
+  const { root, d1 } = depWorld();
+  mkObject(root, "canonical", "support.app", "1.0.0", dep("support.dep", "1.0.0", d1.digest));
+  assert.equal(errsOf(root), "");
+});
+
+test("lifecycle: a revoked artifact never satisfies an executable exact pin", () => {
+  const { root, d1 } = depWorld();
+  mkObject(root, "canonical", "support.app", "1.0.0", dep("support.dep", "1.0.0", d1.digest));
+  writeOverlay(root, "support.dep", [lifeEvent("1.0.0", d1.digest, "revoked")]);
+  assert.match(errsOf(root), /executable dependency execution-agents\/support\.dep@1\.0\.0 is revoked and cannot satisfy it \(revoked artifacts are never eligible\)/);
+});
+
+test("lifecycle: a deprecated artifact still satisfies an explicit exact pin", () => {
+  const { root, d1 } = depWorld();
+  mkObject(root, "canonical", "support.app", "1.0.0", dep("support.dep", "1.0.0", d1.digest));
+  writeOverlay(root, "support.dep", [lifeEvent("1.0.0", d1.digest, "deprecated")]);
+  assert.equal(errsOf(root), "");
+});
+
+test("lifecycle: range selection excludes deprecated and revoked versions", () => {
+  const { root, d1 } = depWorld();
+  const d2 = mkObject(root, "canonical", "support.dep", "1.1.0");
+  mkObject(root, "candidates", "support.app", "1.0.0", dep("support.dep", "^1.0.0"), false);
+  assert.equal(errsOf(root), ""); // two active matches
+  writeOverlay(root, "support.dep", [lifeEvent("1.0.0", d1.digest, "deprecated")]);
+  assert.equal(errsOf(root), ""); // 1.1.0 remains eligible
+  writeOverlay(root, "support.dep", [lifeEvent("1.0.0", d1.digest, "deprecated"), lifeEvent("1.1.0", d2.digest, "revoked", "2026-03-01T00:00:00Z")]);
+  assert.match(errsOf(root), /no eligible version satisfies executable dependency execution-agents\/support\.dep@\^1\.0\.0: matching versions are (deprecated\/revoked|revoked\/deprecated) \(range selection excludes deprecated and revoked\)/);
+});
+
+test("lifecycle: a range whose only match is deprecated (or only revoked) is unsatisfied", () => {
+  const { root, d1 } = depWorld();
+  mkObject(root, "candidates", "support.app", "1.0.0", dep("support.dep", "^1.0.0"), false);
+  writeOverlay(root, "support.dep", [lifeEvent("1.0.0", d1.digest, "deprecated")]);
+  assert.match(errsOf(root), /no eligible version satisfies .*matching versions are deprecated/);
+  writeOverlay(root, "support.dep", [lifeEvent("1.0.0", d1.digest, "revoked")]);
+  assert.match(errsOf(root), /no eligible version satisfies .*matching versions are revoked/);
+});
+
+test("lifecycle: lineage may describe a revoked ancestor without authorizing its execution", () => {
+  const root = emptyDomain();
+  const anc = mkObject(root, "canonical", "support.tool", "1.0.0");
+  const evolve = (a) => {
+    a.metadata.origin = { type: "evolved", evolution: { kind: "refined", rationale: "Tightened the instructions.", proposer: "agent:p", sourceRefs: [
+      { registry: "execution-agents", id: "support.tool", version: "1.0.0", digest: anc.digest },
+      { evidence: "evidence://t/sessions/1", role: "motivates", summary: "Sessions showing the issue." }] } };
+  };
+  mkObject(root, "candidates", "support.tool", "1.0.1", evolve, false);
+  writeOverlay(root, "support.tool", [lifeEvent("1.0.0", anc.digest, "revoked")]);
+  assert.equal(errsOf(root), ""); // historical lineage to a revoked ancestor is valid
+  // ...but the same revoked ancestor cannot be used as an executable dependency (separate case)
+  mkObject(root, "canonical", "support.app", "1.0.0", dep("support.tool", "1.0.0", anc.digest));
+  assert.match(errsOf(root), /executable dependency execution-agents\/support\.tool@1\.0\.0 is revoked/);
+});
+
+test("lifecycle: lineage still verifies existence and digest", () => {
+  const root = emptyDomain();
+  const anc = mkObject(root, "canonical", "support.tool", "1.0.0");
+  const evolve = (digest) => (a) => { a.metadata.origin = { type: "evolved", evolution: { kind: "refined", rationale: "Tightened the instructions.", proposer: "agent:p", sourceRefs: [
+    { registry: "execution-agents", id: "support.tool", version: "1.0.0", digest }, { evidence: "evidence://t/sessions/1", role: "motivates", summary: "Sessions showing the issue." }] } }; };
+  mkObject(root, "candidates", "support.tool", "1.0.1", evolve("sha256:" + "e".repeat(64)), false);
+  assert.match(errsOf(root), /lineage reference execution-agents\/support\.tool@1\.0\.0 digest mismatch/);
+  rmSync(join(root, "candidates/support.tool"), { recursive: true });
+  mkObject(root, "candidates", "support.tool", "1.0.1", (a) => { evolve(anc.digest)(a); a.metadata.origin.evolution.sourceRefs[0].version = "0.9.0"; }, false);
+  assert.match(errsOf(root), /unresolved lineage reference execution-agents\/support\.tool@0\.9\.0/);
+});
+
+test("lifecycle: dependents that are themselves revoked are not held to dependency eligibility", () => {
+  const { root, d1 } = depWorld();
+  const app = mkObject(root, "canonical", "support.app", "1.0.0", dep("support.dep", "1.0.0", d1.digest));
+  writeOverlay(root, "support.dep", [lifeEvent("1.0.0", d1.digest, "revoked")]);
+  assert.match(errsOf(root), /is revoked and cannot satisfy it/);
+  writeOverlay(root, "support.app", [lifeEvent("1.0.0", app.digest, "revoked")]);
+  assert.equal(errsOf(root), "");
+});
+
+// ---- 3. fatal UTF-8 and BOM policy for artifact.yaml / seal.yaml / overlays, with controlled diagnostics
+test("artifact.yaml and seal.yaml: invalid UTF-8 and BOM are rejected with controlled diagnostics", () => {
+  for (const file of ["artifact.yaml", "seal.yaml"]) {
+    const { root, dir } = baseline();
+    const p = join(dir, file), orig = readFileSync(p);
+    writeFileSync(p, Buffer.concat([orig, Buffer.from([0xff, 0xfe, 0x0a])]));
+    assert.match(errsOf(root), new RegExp(`${file.replace(".", "\\.")}: not valid UTF-8`));
+    writeFileSync(p, Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), orig]));
+    assert.match(errsOf(root), new RegExp(`${file.replace(".", "\\.")}: UTF-8 BOM not allowed`));
+    writeFileSync(p, orig);
+    assert.equal(errsOf(root), "");
+  }
+});
+
+test("unreadable YAML never crashes validation or indexing; diagnostics are file-labelled", () => {
+  const { root, dir } = baseline();
+  const p = join(dir, "artifact.yaml"), orig = readFileSync(p);
+  writeFileSync(p, "a: [unterminated\n");
+  assert.match(errsOf(root), /artifact\.yaml: invalid YAML/);
+  assert.throws(() => buildIndex(loadDomain(root), "production"), /cannot index unreadable artifacts/);
+  writeFileSync(p, orig);
+  writeFileSync(join(root, "lifecycle", `${PID}.yaml`), Buffer.from([0xff, 0xfe]));
+  assert.match(errsOf(root), new RegExp(`${PID.replace(".", "\\.")}\\.yaml: not valid UTF-8`));
+  assert.doesNotThrow(() => checkDomainChange(loadDomain(root), loadDomain(root)));
+});
+
+// ---- 4. integer-valued numbers outside the safe range are rejected before precision is lost
+test("yaml numbers: unsafe integer-valued literals are rejected in every spelling", () => {
+  for (const lit of ["9007199254740992", "-9007199254740992", "+9007199254740993", "9007199254740993", "12345678901234567890", "10000000000000000",
+    "9007199254740993.0", "9007199254740993e0", "90071992547409930e-1", "1e16", "1E21", "1e21", "1.5e300", "0x20000000000000", "0o1000000000000000000"])
+    assert.throws(() => parseYamlStrict(`a: ${lit}\n`), /outside the safe range/, lit);
+  assert.throws(() => parseYamlStrict("a: [1, {b: 9007199254740993}]\n"), /outside the safe range/);
+  assert.throws(() => parseYamlStrict("9007199254740993: x\n"), /outside the safe range/);
+  assert.throws(() => parseYamlStrict("a: 1\nb: 12345678901234567890\n"), /line 2, column 4/);
+});
+
+test("yaml numbers: safe integers and fractional values behave as before", () => {
+  const v = parseYamlStrict("a: 9007199254740991\nb: -9007199254740991\nc: 0.05\nd: 333333333.33333329\ne: 123456789012345678e-2\nf: 1e-7\ng: 2.5e3\nh: 4.5e15\ni: 0\nj: 0.0\nk: 1.0\nl: .5\nm: 9007199254740993.5\nn: 1e15\no: 0x10\np: -0\n");
+  assert.deepEqual(v, { a: 9007199254740991, b: -9007199254740991, c: 0.05, d: 333333333.3333333, e: 1234567890123456.8, f: 1e-7, g: 2500, h: 4.5e15, i: 0, j: 0, k: 1, l: 0.5, m: 9007199254740994, n: 1e15, o: 16, p: 0 }); // integer -0 becomes 0; canonical JSON renders both as "0"
+  assert.equal(parseYamlStrict("a: .inf\n").a, Infinity); // still parsed here; canonicalJson rejects non-finite numbers (see earlier test)
+  assert.throws(() => canonicalJson(parseYamlStrict("a: .inf\n")), /non-finite/);
+  assert.equal(isUnsafeIntegerLiteral("0x10"), null); // not a decimal literal: value-based fallback applies
+  assert.equal(isUnsafeIntegerLiteral("123456789012345678e-2"), false); // fractional
+  assert.equal(isUnsafeIntegerLiteral("9007199254740991"), false); assert.equal(isUnsafeIntegerLiteral("9007199254740992"), true);
+  assert.equal(isUnsafeIntegerLiteral("1e400"), true); assert.equal(isUnsafeIntegerLiteral("0e999"), false);
+});
+
+test("yaml numbers: unsafe input is rejected in artifact.yaml, seal.yaml and sidecar YAML with controlled diagnostics; golden digests unchanged", () => {
+  const { root, dir } = baseline();
+  edit(dir, (a) => { a.spec.modelPolicy.temperature = 0.1; });
+  const p = join(dir, "artifact.yaml"), orig = readFileSync(p, "utf8");
+  writeFileSync(p, orig.replace(/temperature: .*/, "temperature: 9007199254740993"));
+  assert.match(errsOf(root), /artifact\.yaml: numeric literal '9007199254740993' at line \d+, column \d+ is an integer outside the safe range/);
+  writeFileSync(p, orig.replace(/temperature: .*/, "temperature: 1e21"));
+  assert.match(errsOf(root), /artifact\.yaml: numeric literal '1e21'/);
+  writeFileSync(p, orig);
+  writeFileSync(join(dir, "evals/golden-triage.yaml"), readFileSync(join(dir, "evals/golden-triage.yaml"), "utf8") + "extra: 9007199254740993\n");
+  assert.match(errsOf(root), /evals\/golden-triage\.yaml: unparseable YAML: .*outside the safe range/);
+  assert.equal(computeSeal(GOLDEN_ARTIFACT, goldenDir()).digest, GOLDEN.digest);
+});
+
+// ---- 5. case-colliding payload paths
+test("payload paths that collide case-insensitively are rejected (files and directories)", () => {
+  const { root, dir } = baseline();
+  writeFileSync(join(dir, "prompts/A.md"), "a\n"); writeFileSync(join(dir, "prompts/a.md"), "b\n");
+  assert.match(errsOf(root), /prompts\/a\.md: case-insensitive path collision with 'prompts\/A\.md'/);
+  rmSync(join(dir, "prompts/A.md")); rmSync(join(dir, "prompts/a.md"));
+  mkdirSync(join(dir, "prompts/Sub")); mkdirSync(join(dir, "prompts/sub"));
+  writeFileSync(join(dir, "prompts/Sub/x.md"), "x\n"); writeFileSync(join(dir, "prompts/sub/y.md"), "y\n");
+  assert.match(errsOf(root), /case-insensitive path collision with 'prompts\/Sub'/);
+  rmSync(join(dir, "prompts/Sub"), { recursive: true }); rmSync(join(dir, "prompts/sub"), { recursive: true });
+  writeFileSync(join(dir, "prompts/notes.md"), "n\n"); writeFileSync(join(dir, "prompts/other.md"), "o\n");
+  assert.doesNotMatch(errsOf(root), /collision/); // distinct names do not collide (the extra files only change the seal)
 });

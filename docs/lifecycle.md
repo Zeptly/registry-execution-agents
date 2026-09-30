@@ -20,3 +20,5 @@ events:
 `deprecated` and `revoked` require a `reason`. Events must be chronological and each must match an existing artifact's digest. Existing events are never edited, removed or reordered (`check-changes`). Overlays apply to candidates too (e.g. revoking a rejected candidate); artifacts are never deleted.
 
 Indexes report the effective lifecycle; resolvers should refuse `revoked`, warn on `deprecated`.
+
+**Eligibility as an executable dependency** (validated for local `references[]`): `revoked` never satisfies a dependency; `deprecated` satisfies only an explicit exact pin and is excluded from range selection. Historical lineage (`origin.evolution.sourceRefs`) may name a revoked ancestor without authorizing its execution. See [references-and-resolution](references-and-resolution.md#executable-dependencies-vs-lineage-lifecycle-eligibility).

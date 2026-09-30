@@ -1,6 +1,6 @@
 import { readdirSync, lstatSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
-import { parse as parseYaml } from "yaml";
+import { parseYamlStrict } from "./yaml.mjs";
 
 /**
  * Version-directory file policy (docs/sealing-and-versioning.md). Everything not explicitly allowed is rejected.
@@ -21,6 +21,7 @@ const posix = (p) => p.split(sep).join("/");
 export function scanVersionDir(dir) {
   const errors = [], files = [];
   let total = 0;
+  const seen = new Map(); // lower-cased path -> original, for files and directories
   const walk = (abs, depth) => {
     let names;
     try { names = readdirSync(abs).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)); } catch (e) { errors.push(`cannot read directory: ${e.message}`); return; }
@@ -29,6 +30,9 @@ export function scanVersionDir(dir) {
       const st = lstatSync(p);
       if (st.isSymbolicLink()) { errors.push(`${rel}: symlinks are not allowed`); continue; }
       if (!SEGMENT.test(name) || name.length > LIMITS.maxSegmentLength) { errors.push(`${rel}: file/directory name not allowed (pattern ${SEGMENT}, max ${LIMITS.maxSegmentLength})`); continue; }
+      const lower = rel.toLowerCase();
+      if (seen.has(lower)) { errors.push(`${rel}: case-insensitive path collision with '${seen.get(lower)}'; bundles must be portable between case-sensitive and case-insensitive filesystems`); continue; }
+      seen.set(lower, rel);
       if (st.isDirectory()) {
         if (depth === 0 && !(name in ALLOWED_DIRS)) { errors.push(`${rel}/: directory not in allow-list (${Object.keys(ALLOWED_DIRS).join(", ")})`); continue; }
         if (depth + 1 >= LIMITS.maxDepth) { errors.push(`${rel}/: exceeds maximum depth ${LIMITS.maxDepth}`); continue; }
@@ -112,7 +116,7 @@ export function scanPayloadContent(dir, files) {
     }
     let parsed;
     try {
-      parsed = ext === ".json" ? JSON.parse(text) : parseYaml(text);
+      parsed = ext === ".json" ? JSON.parse(text) : parseYamlStrict(text);
     } catch (e) {
       errors.push(`${rel}: unparseable ${ext === ".json" ? "JSON (JSON Lines/NDJSON are not allowed)" : "YAML"}: ${e.message.split("\n")[0]}`);
       continue;

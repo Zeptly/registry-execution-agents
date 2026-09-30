@@ -12,14 +12,14 @@ An evolved candidate (`origin.type: evolved`) must include `origin.evolution`:
 Promotion moves the sealed object from `candidates/` to `canonical/` and flips `metadata.maturity`. The digest is unchanged, so existing attestations remain valid. `node scripts/promote.mjs <id> <version>` refuses and rolls back unless every gate holds:
 
 1. schema validation and all semantic checks pass;
-2. every **required** evaluation suite has an `evaluation` attestation (`suite` set) bound to the digest;
+2. every **required** evaluation suite has an `evaluation` attestation (`suite` set) with an explicit **`result: pass`**, bound to the current addressing digest. A `fail` result bound to the digest blocks promotion outright (even beside a pass); a missing attestation, an attestation with no `result` (unspecified), or an `inconclusive` result never satisfies the gate. A later `pass` after `inconclusive`/unspecified does satisfy it. `result` (`pass | fail | inconclusive`) is only valid on `evaluation` attestations;
 3. a `security-review` attestation bound to the digest;
 4. provenance present (authors, createdAt);
 5. a governed `promotion` approval in `security.approvals` bound to the digest (plus a `security-review` approval for `confidential`/`restricted`);
 6. canonical references pin exact versions **and** digests;
 7. canonical evolved artifacts of non-public agents require `promotionGates.humanApproval`.
 
-Adding attestations/approvals never changes the digest: `node scripts/attest.mjs …` appends them.
+Adding attestations/approvals never changes the digest: `node scripts/attest.mjs …` appends them (`--type evaluation` requires `--suite <id> --result pass|fail|inconclusive`). Recorded results are history: they cannot be edited or removed (`check-changes`), so a failure can only be superseded by a new version.
 
 ## Stale attestations
 
@@ -28,6 +28,6 @@ Adding attestations/approvals never changes the digest: `node scripts/attest.mjs
 ## Workflow
 
 1. Create the candidate directory; `seal`; open a PR (governance transport).
-2. Run evaluations elsewhere; `attest` with `evidence://` pointers.
+2. Run evaluations elsewhere; `attest --type evaluation --suite <id> --result <pass|fail|inconclusive> --ref evidence://…`.
 3. Security review + governed approval; `attest --approval …`.
 4. `promote`; regenerate indexes; PR merges. CI: validate, index check, tests, immutability vs base.

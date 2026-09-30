@@ -185,3 +185,10 @@ attestations:
     subjectDigest: sha256:582455943b8b941e80d2475d115068f512166c60ee0feaa51aa906a82cc22844
     issuedAt: 2026-09-29T19:47:27.667Z
     attestor: team:security-placeholder
+  - type: evaluation
+    ref: evidence://synthetic/evaluation/support-ticket-triage/1.0.0/golden-triage/result
+    subjectDigest: sha256:582455943b8b941e80d2475d115068f512166c60ee0feaa51aa906a82cc22844
+    issuedAt: 2026-09-30T22:20:05.109Z
+    suite: golden-triage
+    result: pass
+    attestor: system:synthetic-eval-harness

@@ -12,6 +12,17 @@
 
 Everything validates structurally offline. Only `registry: execution-agents` references can be resolved locally, and they are (version satisfaction, digest equality, canonical→canonical only). References to other registries are structure-checked only; no network access occurs.
 
+## Executable dependencies vs lineage (lifecycle eligibility)
+
+Two kinds of local `execution-agents` reference are validated differently:
+
+| Kind | Where | Eligibility |
+|---|---|---|
+| **Executable dependency** | `references[]` | target must be **canonical** and lifecycle-eligible: `revoked` **never** satisfies; `deprecated` satisfies only an **explicit exact pin**; **range selection excludes** deprecated and revoked versions and picks the highest eligible version |
+| **Lineage (historical)** | `metadata.origin.evolution.sourceRefs` | describes an ancestor; any maturity and any lifecycle state, including `revoked` — this never authorizes executing it. Existence and digest are still verified |
+
+The effective lifecycle comes from the append-only overlay for the exact `(version, digest)`. A dependent that is itself effectively `revoked` is not held to dependency eligibility (it can no longer run). This is validation-time behaviour only; it is not a resolver.
+
 ## Pinning
 
 | Maturity | Requirement |

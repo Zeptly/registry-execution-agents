@@ -148,7 +148,7 @@ function objectRules(o, v, errs, name) {
 /** Seal, attestation and approval binding for one object. Returns the trusted digest or null. */
 function sealRules(o, v, errs) {
   const err = (x) => errs.push(x);
-  if (!o.seal) { err(`missing seal.yaml (run: node scripts/seal.mjs <dir>)`); return null; }
+  if (!o.seal) { if (!o.loadErrors?.some((e) => e.startsWith("seal.yaml:"))) err(`missing seal.yaml (run: node scripts/seal.mjs <dir>)`); return null; }
   if (!v.seal(o.seal)) { fmtErrors(v.seal.errors).forEach((e) => err(`seal.yaml: ${e}`)); return null; }
   const actual = computeSeal(o.artifact, o.dir);
   if (o.seal.subject.id !== o.artifact.metadata.id || o.seal.subject.version !== o.artifact.metadata.version) err(`seal subject does not match artifact identity`);
@@ -156,6 +156,8 @@ function sealRules(o, v, errs) {
   const sf = JSON.stringify(o.seal.files), af = JSON.stringify(actual.files);
   if (sf !== af) err(`seal file list/hashes differ from the directory contents`);
   const digest = actual.digest;
+  for (const [i, x] of o.artifact.attestations.entries())
+    if (x.result !== undefined && x.type !== "evaluation") err(`attestations[${i}]: 'result' is only valid on 'evaluation' attestations (got type '${x.type}')`);
   for (const [i, x] of o.artifact.attestations.entries())
     if (x.subjectDigest !== digest) err(`attestations[${i}] (${x.type}) is stale: subjectDigest ${x.subjectDigest} != artifact digest ${digest}`);
   for (const [i, x] of o.artifact.security.approvals.entries())
@@ -165,8 +167,15 @@ function sealRules(o, v, errs) {
 
 function promotionGates(o, digest, errs) {
   const a = o.artifact, sec = a.security;
-  for (const su of a.spec.evaluation.suites.filter((x) => x.required))
-    if (!a.attestations.some((x) => x.type === "evaluation" && x.suite === su.id && x.subjectDigest === digest)) errs.push(`canonical artifact lacks a digest-bound 'evaluation' attestation for required suite '${su.id}'`);
+  // Every required suite needs an explicit 'pass' bound to the current addressing digest. A failing result blocks outright;
+  // missing, unspecified (no result field) and inconclusive results never satisfy the gate.
+  for (const su of a.spec.evaluation.suites.filter((x) => x.required)) {
+    const bound = a.attestations.filter((x) => x.type === "evaluation" && x.suite === su.id && x.subjectDigest === digest);
+    const results = bound.map((x) => x.result ?? "unspecified");
+    if (!bound.length) errs.push(`canonical artifact lacks a digest-bound 'evaluation' attestation for required suite '${su.id}'`);
+    else if (results.includes("fail")) errs.push(`required suite '${su.id}' has a failing evaluation result bound to this digest; a failed result blocks promotion`);
+    else if (!results.includes("pass")) errs.push(`required suite '${su.id}' has no passing evaluation result bound to this digest (results: ${results.join(", ")}); missing, unspecified or inconclusive results do not satisfy promotion`);
+  }
   if (!a.attestations.some((x) => x.type === "security-review" && x.subjectDigest === digest)) errs.push(`canonical artifact lacks a digest-bound 'security-review' attestation`);
   if (!sec.approvals.some((x) => x.type === "promotion" && x.subjectDigest === digest)) errs.push(`canonical artifact lacks a digest-bound 'promotion' approval`);
   if (["confidential", "restricted"].includes(sec.classification) && !sec.approvals.some((x) => x.type === "security-review" && x.subjectDigest === digest))
@@ -183,7 +192,8 @@ export function validateDomain(domain, name, v) {
 
   for (const x of loaded) {
     const { o, errors } = x;
-    if (!o.artifact) { errors.push(`missing artifact.yaml`); continue; }
+    o.loadErrors?.forEach((e) => errors.push(e));
+    if (!o.artifact) { if (!o.loadErrors?.length) errors.push(`missing artifact.yaml`); continue; }
     if (!v.artifact(o.artifact)) { fmtErrors(v.artifact.errors).forEach((e) => errors.push(`artifact.yaml: ${e}`)); continue; }
     x.ok = true;
     const m = o.artifact.metadata;
@@ -217,15 +227,33 @@ export function validateDomain(domain, name, v) {
   for (const x of valid) {
     const a = x.o.artifact, m = a.metadata;
     const canonical = m.maturity === "canonical";
-    // local reference resolution (structure elsewhere; only this registry is resolvable offline)
-    const localRefs = [...a.references, ...(m.origin.evolution?.sourceRefs ?? []).filter((r) => r.registry)].filter((r) => r.registry === REGISTRY);
-    for (const r of localRefs) {
-      const isLineage = m.origin.evolution?.sourceRefs?.includes(r);
-      if (r.id === m.id && !isLineage) { x.errors.push(`reference to itself: ${key(r)}`); continue; }
-      const targets = (byId.get(r.id) ?? []).filter((t) => satisfies(t.o.artifact.metadata.version, r.version));
-      const pool = isLineage ? targets : targets.filter((t) => t.o.artifact.metadata.maturity === "canonical");
-      if (!pool.length) { x.errors.push(`unresolved local reference ${key(r)}@${r.version}${canonical ? " (canonical artifacts may only depend on canonical versions)" : ""}`); continue; }
-      if (r.digest && isExact(r.version) && pool[0].digest && pool[0].digest !== r.digest) x.errors.push(`reference ${key(r)}@${r.version} digest mismatch (expected ${pool[0].digest})`);
+    // Local reference resolution (structure only elsewhere; only this registry is resolvable offline).
+    // 1) EXECUTABLE dependencies (`references[]`): canonical targets only, lifecycle-eligible:
+    //    revoked never satisfies; deprecated satisfies an explicit exact pin but is excluded from range selection;
+    //    ranges select the highest eligible version. Not enforced for a dependent that is itself revoked.
+    const selfLife = x.digest ? effectiveLifecycle(domain.overlays, m.id, m.version, x.digest) : "active";
+    for (const r of a.references.filter((q) => q.registry === REGISTRY)) {
+      if (r.id === m.id) { x.errors.push(`reference to itself: ${key(r)}`); continue; }
+      const exact = isExact(r.version);
+      const matches = (byId.get(r.id) ?? []).filter((t) => t.o.artifact.metadata.maturity === "canonical" && satisfies(t.o.artifact.metadata.version, r.version));
+      if (!matches.length) { x.errors.push(`unresolved local reference ${key(r)}@${r.version}${canonical ? " (canonical artifacts may only depend on canonical versions)" : ""}`); continue; }
+      const life = (t) => (t.digest ? effectiveLifecycle(domain.overlays, t.o.artifact.metadata.id, t.o.artifact.metadata.version, t.digest) : "active");
+      const eligible = matches.filter((t) => life(t) === "active" || (exact && life(t) === "deprecated"));
+      if (!eligible.length) {
+        if (selfLife !== "revoked") x.errors.push(exact
+          ? `executable dependency ${key(r)}@${r.version} is ${life(matches[0])} and cannot satisfy it${life(matches[0]) === "deprecated" ? "" : " (revoked artifacts are never eligible)"}`
+          : `no eligible version satisfies executable dependency ${key(r)}@${r.version}: matching versions are ${[...new Set(matches.map(life))].join("/")} (range selection excludes deprecated and revoked)`);
+        continue;
+      }
+      const chosen = [...eligible].sort((p, q) => compare(q.o.artifact.metadata.version, p.o.artifact.metadata.version))[0];
+      if (r.digest && exact && chosen.digest && chosen.digest !== r.digest) x.errors.push(`reference ${key(r)}@${r.version} digest mismatch (expected ${chosen.digest})`);
+    }
+    // 2) LINEAGE (`origin.evolution.sourceRefs`): historical description of an ancestor. Any maturity, any lifecycle
+    //    (a revoked ancestor may be described; this never authorizes executing it). Existence and digest are still verified.
+    for (const r of (m.origin.evolution?.sourceRefs ?? []).filter((q) => q.registry === REGISTRY)) {
+      const target = (byId.get(r.id) ?? []).find((t) => t.o.artifact.metadata.version === r.version);
+      if (!target) { x.errors.push(`unresolved lineage reference ${key(r)}@${r.version}`); continue; }
+      if (r.digest && target.digest && target.digest !== r.digest) x.errors.push(`lineage reference ${key(r)}@${r.version} digest mismatch (expected ${target.digest})`);
     }
     if (canonical && x.digest) promotionGates(x.o, x.digest, x.errors);
   }
@@ -235,6 +263,7 @@ export function validateDomain(domain, name, v) {
   for (const ov of domain.overlays) {
     const errors = [];
     const o = ov.overlay;
+    if (ov.loadError) { overlayResults.push({ path: ov.file, errors: [ov.loadError] }); continue; }
     if (!v.lifecycle(o)) fmtErrors(v.lifecycle.errors).forEach((e) => errors.push(e));
     else {
       if (`${o.subject.id}.yaml` !== ov.name) errors.push(`file name must be ${o.subject.id}.yaml`);

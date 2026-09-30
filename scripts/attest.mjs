@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Append a digest-bound attestation or governed approval to a sealed artifact (append-only).
 // usage: node scripts/attest.mjs <artifact-dir> --type evaluation|security-review|provenance --ref evidence://... [--suite id] [--attestor github:x]
+// evaluation attestations require --result pass|fail|inconclusive
 //        node scripts/attest.mjs <artifact-dir> --approval security-review|promotion --approver github:x [--ref evidence://...]
 import { writeFileSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -21,6 +22,10 @@ if (opt("--approval")) {
 } else {
   const a = { type: opt("--type"), ref: opt("--ref"), subjectDigest: seal.digest, issuedAt: now };
   if (opt("--suite")) a.suite = opt("--suite");
+  if (a.type === "evaluation") {
+    if (!["pass", "fail", "inconclusive"].includes(opt("--result"))) { console.error("evaluation attestations require --result pass|fail|inconclusive"); process.exit(2); }
+    a.result = opt("--result");
+  } else if (opt("--result")) { console.error("--result is only valid with --type evaluation"); process.exit(2); }
   if (opt("--attestor")) a.attestor = opt("--attestor");
   artifact.attestations.push(a);
 }

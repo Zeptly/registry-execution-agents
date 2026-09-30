@@ -42,7 +42,7 @@ npm run ci                                      # validate both domains, indexes
 node scripts/check-changes.mjs --base origin/main   # immutability against a base ref
 
 node scripts/seal.mjs <artifact-dir>            # write seal.yaml (content digest)
-node scripts/attest.mjs <artifact-dir> --type evaluation --suite <id> --ref evidence://…
+node scripts/attest.mjs <artifact-dir> --type evaluation --suite <id> --result pass --ref evidence://…
 node scripts/attest.mjs <artifact-dir> --approval promotion --approver github:<user>
 node scripts/promote.mjs <id> <version>         # candidate -> canonical (gates enforced, digest unchanged)
 npm run build:index                             # regenerate both indexes

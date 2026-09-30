@@ -14,7 +14,7 @@
 ## Checklist
 - [ ] `npm run ci` passes; indexes regenerated (`npm run build:index`)
 - [ ] No sealed version was edited; attestations/approvals/overlays are append-only
-- [ ] Attestations and approvals are bound to the current digest
+- [ ] Attestations and approvals are bound to the current digest; evaluation attestations carry an explicit `result`
 - [ ] Canonical references pin exact version and digest
 - [ ] No endpoints, credentials or raw runtime data
 - [ ] Synthetic content stays under `synthetic/`

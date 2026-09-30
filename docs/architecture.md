@@ -15,7 +15,7 @@
 ```
 
 - **Owned here:** identity, sealed content, `spec` semantics, maturity, lifecycle overlays, provenance, digest-bound attestations, indexes.
-- **Not owned here:** execution, scheduling, secrets, gateways, model catalogues, telemetry, tapes, the Evidence Protocol, capability/tool/model namespace ownership. Artifacts contain structured references and logical names only. Validators reject `http(s)://` strings and credential-shaped values.
+- **Not owned here:** execution, scheduling, secrets, gateways, model catalogues, telemetry, tapes, the Evidence Protocol, capability/tool/model namespace ownership. Artifacts contain structured references and logical names only. Validators reject endpoints (URL schemes, `host:port`) and credential-shaped values in the artifact and in every sidecar payload file.
 
 ## Identity and immutability
 

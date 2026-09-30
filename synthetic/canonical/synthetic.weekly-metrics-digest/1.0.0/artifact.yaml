@@ -189,3 +189,10 @@ attestations:
     subjectDigest: sha256:547cc41bf8b067d4000da2182099c65a6bf3fc66f7e144fc7e57297e1eb82741
     issuedAt: 2026-09-29T19:47:28.160Z
     attestor: team:security-placeholder
+  - type: evaluation
+    ref: evidence://synthetic/evaluation/weekly-metrics-digest/1.0.0/golden-digest/result
+    subjectDigest: sha256:547cc41bf8b067d4000da2182099c65a6bf3fc66f7e144fc7e57297e1eb82741
+    issuedAt: 2026-09-30T22:20:05.265Z
+    suite: golden-digest
+    result: pass
+    attestor: system:synthetic-eval-harness

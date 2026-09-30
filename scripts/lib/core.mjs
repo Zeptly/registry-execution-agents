@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, existsSync, lstatSync } from "node:fs";
 import { join, dirname, resolve, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parse as parseYaml } from "yaml";
+import { readYamlStrict } from "./yaml.mjs";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import { scanVersionDir } from "./files.mjs";
@@ -30,7 +30,7 @@ export const EXCLUDED_FIELDS = ["metadata.version", "metadata.maturity", "metada
 export const SEAL_FILE = "seal.yaml";
 export const ARTIFACT_FILE = "artifact.yaml";
 
-export const readYaml = (p) => parseYaml(readFileSync(p, "utf8"));
+export const readYaml = readYamlStrict; // fatal UTF-8, no BOM, strict numbers, duplicate keys rejected (see lib/yaml.mjs)
 export const readJson = (p) => JSON.parse(readFileSync(p, "utf8"));
 export const sha256 = (buf) => "sha256:" + createHash("sha256").update(buf).digest("hex");
 export const toPosix = (p) => p.split(sep).join("/");
@@ -160,15 +160,26 @@ export function listObjects(domainRoot, issues = []) {
   return out;
 }
 
+/** Read a YAML file without throwing: { value, error } with a controlled, file-labelled diagnostic. */
+export function tryReadYaml(path, label) {
+  if (!existsSync(path)) return { value: null, error: null, missing: true };
+  try { return { value: readYaml(path), error: null }; }
+  catch (e) { return { value: null, error: `${label}: ${e.message}` }; }
+}
+
 export function loadObject(o) {
-  const ap = join(o.dir, ARTIFACT_FILE), sp = join(o.dir, SEAL_FILE);
-  return { ...o, artifact: existsSync(ap) ? readYaml(ap) : null, seal: existsSync(sp) ? readYaml(sp) : null };
+  const a = tryReadYaml(join(o.dir, ARTIFACT_FILE), ARTIFACT_FILE);
+  const s = tryReadYaml(join(o.dir, SEAL_FILE), SEAL_FILE);
+  return { ...o, artifact: a.value, seal: s.value, loadErrors: [a.error, s.error].filter(Boolean) };
 }
 
 export function loadOverlays(domainRoot) {
   const d = join(domainRoot, "lifecycle");
   if (!existsSync(d)) return [];
-  return readdirSync(d).filter((f) => f.endsWith(".yaml") && lstatSync(join(d, f)).isFile()).sort(compareCodePoints).map((f) => ({ file: join(d, f), name: f, overlay: readYaml(join(d, f)) }));
+  return readdirSync(d).filter((f) => f.endsWith(".yaml") && lstatSync(join(d, f)).isFile()).sort(compareCodePoints).map((f) => {
+    const r = tryReadYaml(join(d, f), f);
+    return { file: join(d, f), name: f, overlay: r.value, loadError: r.error };
+  });
 }
 
 export function loadDomain(domainRoot) {

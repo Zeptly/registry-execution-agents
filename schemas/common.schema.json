@@ -151,6 +151,7 @@
         "ref": { "$ref": "#/$defs/evidencePointer" },
         "subjectDigest": { "$ref": "#/$defs/digest" },
         "suite": { "$ref": "#/$defs/label" },
+        "result": { "enum": ["pass", "fail", "inconclusive"], "description": "Explicit outcome. Only meaningful for type 'evaluation'; promotion requires an explicit 'pass' for every required suite." },
         "issuedAt": { "type": "string", "format": "date-time" },
         "attestor": { "$ref": "#/$defs/principal" }
       }

@@ -10,7 +10,9 @@
 - **Never edit a sealed version.** Create a new version directory, `seal` it, and attach attestations.
 - Attestations, approvals and lifecycle events are **append-only**.
 - New agents and evolutions enter as **candidates**; promotion uses `scripts/promote.mjs` and requires digest-bound evaluation and security-review attestations plus a governed approval.
-- Canonical artifacts pin references by exact version **and** digest.
+- Canonical artifacts pin references by exact version **and** digest. Executable local dependencies must be lifecycle-eligible (revoked never; deprecated only by exact pin).
+- Promotion needs an explicit passing evaluation `result` for every required suite; failed, missing and inconclusive results do not count. Recorded results are append-only history.
+- YAML must be UTF-8 without BOM; write integers beyond ±9007199254740991 as quoted strings; avoid case-colliding file names.
 - **No endpoints, credentials, tapes, transcripts or customer data.** Use structured references and `evidence://` pointers. Version directories accept only `prompts/`, `contracts/`, `evals/` files of allowed types (LF-only UTF-8, size-limited, no symlinks).
 - Examples and fixtures live in `synthetic/` with `synthetic.` ids and can never be referenced from `registry/`.
 - After changing artifacts or overlays run `npm run build:index` and commit the indexes (CI verifies them).

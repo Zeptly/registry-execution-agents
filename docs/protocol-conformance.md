@@ -48,3 +48,14 @@ Durable task contracts, retry, timeout, checkpoint, state and execution policies
 | Index ordering | Locale-independent code-point comparator |
 | Version-directory contents | Allow-list, size limits, no symlinks, runtime-record detection |
 | Runtime locks | Runtime-owned; none generated here |
+
+## Local defect remediation (validation only; architecture unchanged)
+
+| Item | State |
+|---|---|
+| Promotion evaluation evidence | explicit `result: pass` per required suite, bound to the current digest; `fail` blocks; missing/unspecified/inconclusive do not satisfy |
+| Dependency lifecycle eligibility | revoked never eligible; deprecated only by exact pin; ranges exclude both; lineage distinct |
+| `artifact.yaml` / `seal.yaml` text | fatal UTF-8, no BOM, controlled diagnostics |
+| Numbers | integer-valued literals outside the safe range rejected at the source |
+| Paths | case-colliding names rejected |
+| Regression coverage | independent seal/golden recomputation (third-party RFC 8785 implementation) against populated fixtures, with modification and deletion cases |

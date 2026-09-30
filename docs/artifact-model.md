@@ -49,10 +49,14 @@ attestations: [ {type, ref: evidence://…, subjectDigest: sha256:…, suite?} ]
 | `observability` | Tracing, metrics, and what a run must record as evidence. |
 | `compatibility.requiredRuntimeFeatures` | Feature labels the runtime must provide. Runtime-contract versioning is deferred. |
 
+## Attestations
+
+`{type, ref: evidence://…, subjectDigest, suite?, result?, issuedAt?, attestor?}`. `type` ∈ `evaluation | security-review | provenance`. For `evaluation`, `suite` names the suite and `result` (`pass | fail | inconclusive`) is the explicit outcome; only a `pass` bound to the current digest satisfies promotion (see [maturity-and-promotion](maturity-and-promotion.md)). `result` is rejected on other types. Attestations are append-only and excluded from the digest.
+
 ## Independent dimensions
 
 `maturity` (candidate|canonical), `metadata.lifecycle` / overlay (active|deprecated|revoked) and `origin` (native|upstream-seed|evolved) are separate fields and change independently. Maturity is governance state, not content; it is excluded from the digest.
 
 ## Cross-field rules (validator-enforced)
 
-Irreversible tools require approval and a matching `permissions.sideEffects`; side effects need a write scope; retries with side effects need idempotency; rollback with irreversible effects needs compensation; step/tool timeouts ≤ run timeout; checkpoint/timeout coherence; `confidential`/`restricted` need evidence redaction, `restricted` cannot run `humanInTheLoop: never`; egress `none` conflicts with declared capabilities; no `http(s)` URLs or credential-shaped strings. Canonical artifacts additionally need a required evaluation suite, tracing on, and the promotion gates. Full list: `scripts/lib/rules.mjs`.
+Irreversible tools require approval and a matching `permissions.sideEffects`; side effects need a write scope; retries with side effects need idempotency; rollback with irreversible effects needs compensation; step/tool timeouts ≤ run timeout; checkpoint/timeout coherence; `confidential`/`restricted` need evidence redaction, `restricted` cannot run `humanInTheLoop: never`; egress `none` conflicts with declared capabilities; no endpoints (URL schemes, `host:port`) or credential-shaped strings in the artifact or any sidecar payload file. Canonical artifacts additionally need a required evaluation suite, tracing on, and the promotion gates (explicit passing evaluation result per required suite, bound to the digest). Full list: `scripts/lib/rules.mjs`.

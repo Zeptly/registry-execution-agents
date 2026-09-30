@@ -40,9 +40,13 @@ One policy for every digest: **RFC 8785 (JCS)** over the parsed value (`canonica
 
 Golden vectors (`test/registry.test.mjs`): the RFC 8785 key-ordering and number examples, and a fixed artifact whose `artifactDigest` and `digest` were computed independently (Python) and are pinned in the test.
 
+## YAML input and numbers
+
+Every YAML file the registry reads (`artifact.yaml`, `seal.yaml`, lifecycle overlays, YAML payload files) goes through one parser (`scripts/lib/yaml.mjs`): YAML 1.2 core schema, **single document, duplicate keys rejected**, and **integer-valued numbers outside the safe integer range (±9007199254740991) are rejected at the source literal**, before a double could round them. This covers every spelling of the literal: `9007199254740993`, `12345678901234567890`, `9007199254740993.0`, `9007199254740993e0`, `90071992547409930e-1`, `1e16`, `1e21`, hex/octal forms. Quote such values as strings. Fractional values (`0.05`, `333333333.33333329`, `123456789012345678e-2`) and safe integers behave as before; an integer `-0` parses as `0` (both canonicalize to `0`). Numbers inside JSON payload files are not digest inputs (the files are hashed as raw bytes).
+
 ## Line endings and text
 
-Payload bytes are hashed as-is. Files must therefore be **UTF-8 without BOM, LF-only, no NUL**; the validator rejects CR, BOM, NUL and invalid UTF-8 in every version-directory file. `.gitattributes` forces `eol=lf` so Git checkouts cannot alter bytes.
+Payload bytes are hashed as-is. Files must therefore be **UTF-8 without BOM, LF-only, no NUL**; the validator rejects CR, BOM, NUL and invalid UTF-8 in every version-directory file. `.gitattributes` forces `eol=lf` so Git checkouts cannot alter bytes. The same UTF-8 policy (**fatal decoding, no BOM**) applies to `artifact.yaml`, `seal.yaml` and lifecycle overlays, which are read through the strict reader; violations are reported as `<file>: not valid UTF-8` / `<file>: UTF-8 BOM not allowed` and never crash validation or index building.
 
 ## File policy
 
@@ -55,7 +59,7 @@ A version directory may contain only:
 | `contracts/` | `.json`, `.yaml`, `.yml` |
 | `evals/` | `.yaml`, `.yml`, `.json` |
 
-Everything else is rejected. Names match `^[A-Za-z0-9][A-Za-z0-9._-]*$` (≤64 chars), nesting ≤3 levels. Limits: ≤64 files, ≤256 KiB per file, ≤1 MiB per version directory. **Symlinks are never followed and are rejected** (in version directories and in the tree structure); special files are rejected; unexpected entries in `canonical/`, `candidates/` and the domain root are rejected. Names or content that indicate tapes, traces or transcripts are rejected ([evidence-model](evidence-model.md#enforcement)). `seal.mjs` refuses to seal a directory that violates the policy. Limits live in `scripts/lib/files.mjs`.
+Everything else is rejected. **Case-colliding paths** (two files or directories whose names differ only by case, e.g. `A.md` and `a.md`) are rejected so bundles extract identically on case-sensitive and case-insensitive filesystems. Names match `^[A-Za-z0-9][A-Za-z0-9._-]*$` (≤64 chars), nesting ≤3 levels. Limits: ≤64 files, ≤256 KiB per file, ≤1 MiB per version directory. **Symlinks are never followed and are rejected** (in version directories and in the tree structure); special files are rejected; unexpected entries in `canonical/`, `candidates/` and the domain root are rejected. Names or content that indicate tapes, traces or transcripts are rejected ([evidence-model](evidence-model.md#enforcement)). `seal.mjs` refuses to seal a directory that violates the policy. Limits live in `scripts/lib/files.mjs`.
 
 ## Rules
 

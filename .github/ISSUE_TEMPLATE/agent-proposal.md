@@ -7,7 +7,7 @@ labels: agent-proposal
 
 **Input / output contract (sketch)**
 
-**Skills, capabilities and tools needed** (by stable ID)
+**Skills, capabilities and tools needed** (as structured references: registry, id, version)
 
 **Data classification and side effects**
 

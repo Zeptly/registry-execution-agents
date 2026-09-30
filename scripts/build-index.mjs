@@ -11,7 +11,7 @@ const v = makeValidators();
 let failed = false;
 for (const [name, dir] of Object.entries(DOMAINS)) {
   const domain = loadDomain(join(REPO_ROOT, dir));
-  const idx = buildIndex(domain, name);
+  let idx; try { idx = buildIndex(domain, name); } catch (e) { console.error(`${name}: ${e.message}`); failed = true; continue; }
   const again = buildIndex(loadDomain(join(REPO_ROOT, dir)), name);
   const text = JSON.stringify(idx, null, 2) + "\n";
   if (text !== JSON.stringify(again, null, 2) + "\n") { console.error(`${name}: index is not deterministic`); failed = true; }
