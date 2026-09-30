@@ -1,0 +1,31 @@
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Schema + semantic validation (production and synthetic domains)
+        run: npm run validate
+      - name: Deterministic indexes are current
+        run: npm run index:check
+      - name: Unit tests
+        run: npm test
+      - name: Immutability vs base (published objects, attestations, lifecycle overlays)
+        if: github.event_name == 'pull_request'
+        run: node scripts/check-changes.mjs --base "origin/${{ github.base_ref }}"

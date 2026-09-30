@@ -1,0 +1,130 @@
+apiVersion: registry.zeptly.dev/v1alpha1
+kind: ExecutionAgent
+metadata:
+  id: synthetic.contract-clause-extractor
+  version: 0.1.0
+  registry: execution-agents
+  origin:
+    type: native
+  maturity: candidate
+  lifecycle: active
+spec:
+  name: Contract Clause Extractor
+  description: Extracts and labels key clauses from a single contract document
+    into structured records.
+  purpose:
+    summary: Identify termination, liability and renewal clauses in one contract and
+      return them with source locations.
+    goals:
+      - Extract clauses with page and paragraph anchors.
+      - Never paraphrase legal text; quote verbatim.
+    nonGoals:
+      - Legal advice or risk scoring.
+  tags:
+    - legal
+    - extraction
+  owners:
+    - team:legal-ops
+  instructions:
+    file: prompts/system.md
+  contract:
+    input:
+      schemaFile: contracts/input.schema.json
+    output:
+      schemaFile: contracts/output.schema.json
+  executionPolicy:
+    mode: single_pass
+    maxSteps: 4
+    idempotency: best_effort
+    triggers:
+      - api
+      - manual
+    humanInTheLoop: on_demand
+  timeoutPolicy:
+    runSeconds: 600
+  retryPolicy:
+    maxAttempts: 2
+    retryOn:
+      - model_rate_limit
+      - model_overloaded
+    neverRetryOn:
+      - input_invalid
+      - policy_violation
+  checkpointPolicy:
+    strategy: none
+    resumable: false
+  state:
+    persistence: none
+  evaluation:
+    suites:
+      - id: golden-clauses
+        file: evals/golden-clauses.yaml
+        kind: golden
+        required: true
+        minPassRate: 0.95
+    promotionGates:
+      requireNoRegression: true
+      humanApproval: true
+  observability:
+    tracing: standard
+    evidence:
+      recordTape: false
+  modelPolicy:
+    tier: frontier
+    requiredFeatures:
+      - structured_output
+      - long_context
+    temperature: 0
+    models:
+      - registry: models
+        id: frontier-default
+  dataHandling:
+    processesPii: true
+    mayPersistInputs: false
+    redactInEvidence: true
+  permissions:
+    scopes:
+      - documents:read
+    egress:
+      mode: none
+    sideEffects: none
+references:
+  - registry: skills
+    id: clause-extraction
+    version: ^0.1.0
+    digest: sha256:e690f658fbe61a6a24b88ff65f74cf55f43ce4f653a455988421902d0bbbdb28
+    digestAlgorithm: zeptly-jcs-v1
+provenance:
+  createdAt: 2026-09-29 00:00:00+00:00
+  authors:
+    - github:zeptly-bootstrap
+  sourceRefs: []
+  transformations: []
+  synthetic: true
+security:
+  classification: restricted
+  capabilities: []
+  approvals: []
+attestations:
+  - type: evaluation
+    ref: evidence://synthetic/evaluation/contract-clause-extractor/0.1.0/golden-clauses/run-1-timeout
+    subjectDigest: sha256:7ace6196eb8d465e1f5f723893939008a4986e69daa0d3c3acdaa60c3f55dc1c
+    sealDigest: sha256:7bc9c1d1fc8bdbab10368c6ee6b647eb6d50f262f2e66a9e304b98eff974177f
+    issuedAt: 2026-09-30T22:56:19.126Z
+    suite:
+      id: golden-clauses
+      version: 1.0.0
+      digest: sha256:bc6a8e74c4d697aa4098dbfab3f52afb5817ce0524a020adff1a374b4aef8833
+    result: inconclusive
+    attestor: system:synthetic-eval-harness
+  - type: evaluation
+    ref: evidence://synthetic/evaluation/contract-clause-extractor/0.1.0/golden-clauses/run-2
+    subjectDigest: sha256:7ace6196eb8d465e1f5f723893939008a4986e69daa0d3c3acdaa60c3f55dc1c
+    sealDigest: sha256:7bc9c1d1fc8bdbab10368c6ee6b647eb6d50f262f2e66a9e304b98eff974177f
+    issuedAt: 2026-09-30T22:56:19.276Z
+    suite:
+      id: golden-clauses
+      version: 1.0.0
+      digest: sha256:bc6a8e74c4d697aa4098dbfab3f52afb5817ce0524a020adff1a374b4aef8833
+    result: fail
+    attestor: system:synthetic-eval-harness

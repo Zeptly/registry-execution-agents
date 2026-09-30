@@ -1,0 +1,13 @@
+# ===========================================================================
+# PLACEHOLDER HANDLES — NOT REAL TEAMS.
+# @Zeptly/registry-maintainers and @Zeptly/security are placeholders that may
+# not exist. Replace with real GitHub org teams/users before relying on
+# CODEOWNERS review. Until then GitHub ignores/flags unknown owners.
+# ===========================================================================
+*                       @Zeptly/registry-maintainers
+/schemas/               @Zeptly/registry-maintainers @Zeptly/security
+/scripts/               @Zeptly/registry-maintainers
+/.github/               @Zeptly/registry-maintainers @Zeptly/security
+/registry/              @Zeptly/registry-maintainers
+/synthetic/             @Zeptly/registry-maintainers
+# Confidential/restricted artifacts also need a digest-bound security review (enforced by validation).

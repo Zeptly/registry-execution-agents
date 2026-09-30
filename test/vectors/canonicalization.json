@@ -1,0 +1,89 @@
+{
+  "digestAlgorithm": "zeptly-jcs-v1",
+  "accept": [
+    {
+      "name": "rfc8785-sorting",
+      "json": "{\"\\u20ac\": \"Euro Sign\", \"\\r\": \"Carriage Return\", \"\\ufb33\": \"Hebrew Letter Dalet With Dagesh\", \"1\": \"One\", \"\\ud83d\\ude00\": \"Emoji: Grinning Face\", \"\\u0080\": \"Control\", \"\\u00f6\": \"Latin Small Letter O With Diaeresis\"}",
+      "canonical": "{\"\\r\":\"Carriage Return\",\"1\":\"One\",\"\u0080\":\"Control\",\"\u00f6\":\"Latin Small Letter O With Diaeresis\",\"\u20ac\":\"Euro Sign\",\"\ud83d\ude00\":\"Emoji: Grinning Face\",\"\ufb33\":\"Hebrew Letter Dalet With Dagesh\"}",
+      "canonicalUtf8Hex": "7b225c72223a2243617272696167652052657475726e222c2231223a224f6e65222c22c280223a22436f6e74726f6c222c22c3b6223a224c6174696e20536d616c6c204c6574746572204f205769746820446961657265736973222c22e282ac223a224575726f205369676e222c22f09f9880223a22456d6f6a693a204772696e6e696e672046616365222c22efacb3223a22486562726577204c65747465722044616c6574205769746820446167657368227d",
+      "sha256": "sha256:5e321556d22018a9656991a9e94f77ec175fa193e52a2429d312f8419ec8b08c",
+      "expectedSource": "RFC 8785 \u00a73.2.3 input; order computed by UTF-16 code units",
+      "note": "emoji (surrogate pair D83D) sorts before U+FB33 in UTF-16 order"
+    },
+    {
+      "name": "rfc8785-numbers",
+      "json": "[333333333.33333329,1E30,4.50,2e-3,0.000000000000000000000000001]",
+      "canonical": "[333333333.3333333,1e+30,4.5,0.002,1e-27]",
+      "canonicalUtf8Hex": "5b3333333333333333332e333333333333332c31652b33302c342e352c302e3030322c31652d32375d",
+      "sha256": "sha256:7c6bc86d861387d823ae596b79ca0b26567dddc22a77acb1f4e06d441f555adf",
+      "expectedSource": "RFC 8785 Appendix B values (literal)",
+      "note": ""
+    },
+    {
+      "name": "nested-structure-order",
+      "json": "{\"b\":[true,null,{\"z\":1,\"a\":[]}],\"a\":{}}",
+      "canonical": "{\"a\":{},\"b\":[true,null,{\"a\":[],\"z\":1}]}",
+      "canonicalUtf8Hex": "7b2261223a7b7d2c2262223a5b747275652c6e756c6c2c7b2261223a5b5d2c227a223a317d5d7d",
+      "sha256": "sha256:350836ef56334705303bd5854f0f158b06a52e5b882592b44ddfff0f32bf9d9b",
+      "expectedSource": "independent serializer",
+      "note": ""
+    },
+    {
+      "name": "no-unicode-normalization",
+      "json": "[\"\\u00e9\", \"e\\u0301\"]",
+      "canonical": "[\"\u00e9\",\"e\u0301\"]",
+      "canonicalUtf8Hex": "5b22c3a9222c2265cc81225d",
+      "sha256": "sha256:4f9aefe2a56dde33aa0522021cb5e8692f35b700043dbee664b3611e2b92f724",
+      "expectedSource": "independent serializer",
+      "note": "NFC and NFD forms stay distinct"
+    },
+    {
+      "name": "string-escapes",
+      "json": "[\"\\u0001\\u001f\\\"\\\\/\\n\\t\", \"\\u2028\\u007f\"]",
+      "canonical": "[\"\\u0001\\u001f\\\"\\\\/\\n\\t\",\"\u2028\u007f\"]",
+      "canonicalUtf8Hex": "5b225c75303030315c75303031665c225c5c2f5c6e5c74222c22e280a87f225d",
+      "sha256": "sha256:39c499d21b8678367fda14028d2a8fbb2add4ff3ca8d8e406b29007eed505bea",
+      "expectedSource": "independent serializer",
+      "note": "controls escaped lowercase \\u00xx; U+2028 and DEL raw; '/' unescaped"
+    },
+    {
+      "name": "astral-raw",
+      "json": "[\"\\ud83d\\ude00\"]",
+      "canonical": "[\"\ud83d\ude00\"]",
+      "canonicalUtf8Hex": "5b22f09f9880225d",
+      "sha256": "sha256:aff2a0387611973d359e99d65ccf8953b41a00e9415a4e83ee6aab1e3c72a4ab",
+      "expectedSource": "independent serializer",
+      "note": ""
+    },
+    {
+      "name": "negative-zero",
+      "json": "[-0,0,1,-1,1.5,100]",
+      "canonical": "[0,0,1,-1,1.5,100]",
+      "canonicalUtf8Hex": "5b302c302c312c2d312c312e352c3130305d",
+      "sha256": "sha256:f1f6ddaaa2046b510ae87d83cd7807692be30427d06a4bea6aaa1c242875cf71",
+      "expectedSource": "RFC 8785 (ECMAScript number serialization)",
+      "note": ""
+    },
+    {
+      "name": "empty-structures",
+      "json": "{\"a\":[],\"b\":{}}",
+      "canonical": "{\"a\":[],\"b\":{}}",
+      "canonicalUtf8Hex": "7b2261223a5b5d2c2262223a7b7d7d",
+      "sha256": "sha256:9959f7ea5ff37e0cf81634a894845a335eb6e26fbad0877944e9bc009b4f0644",
+      "expectedSource": "independent serializer",
+      "note": ""
+    }
+  ],
+  "reject": [
+    {
+      "name": "lone-surrogate-string",
+      "json": "\"\\ud800\"",
+      "code": "lone-surrogate"
+    },
+    {
+      "name": "lone-surrogate-key",
+      "json": "{\"\\udc00\":1}",
+      "code": "lone-surrogate"
+    }
+  ]
+}

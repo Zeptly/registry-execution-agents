@@ -1,0 +1,18 @@
+apiVersion: registry.zeptly.dev/v1alpha1
+kind: Seal
+digestAlgorithm: zeptly-jcs-v1
+subject:
+  registry: execution-agents
+  id: synthetic.support-ticket-triage
+  version: 1.0.1
+artifactDigest: sha256:1651a25586b0fdb3c8e3fff7d2dba9f9c8248dea3b83ba0ad9c019d90d81ed9b
+sealDigest: sha256:34cb1f19c86843720fb2b5c50b46e0eed9a63c308d0fa0c1c81a7211e5a27b41
+payload:
+  - path: contracts/input.schema.json
+    sha256: sha256:2d4d466876f6bb398d281da6cc90a81bd11bde052ed7dd604020841a3191978d
+  - path: contracts/output.schema.json
+    sha256: sha256:9279a63ad254bab12d852e73ccf45252ea73edfeb69b29a6727ca01c4c3804d2
+  - path: evals/golden-triage.yaml
+    sha256: sha256:8fe24d8fb18bb599e580b8499f07624c2ac2bbe6d4c1b239a90101aa66112438
+  - path: prompts/system.md
+    sha256: sha256:5bc599392c00480525c5dcba70b6ce6279ca19544f144eda52de783459b31c09

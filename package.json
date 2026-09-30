@@ -1,0 +1,27 @@
+{
+  "name": "@zeptly/registry-execution-agents",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Canonical registry of Zeptly Execution Agent artifacts (Zeptly Registry Protocol v0.1)",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "validate": "node scripts/validate.mjs",
+    "seal": "node scripts/seal.mjs",
+    "attest": "node scripts/attest.mjs",
+    "promote": "node scripts/promote.mjs",
+    "build:index": "node scripts/build-index.mjs",
+    "index:check": "node scripts/build-index.mjs --check",
+    "check-changes": "node scripts/check-changes.mjs",
+    "test": "node --test test/*.test.mjs",
+    "ci": "npm run validate && npm run index:check && npm test"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "canonicalize": "^5.1.0",
+    "yaml": "^2.6.0"
+  }
+}

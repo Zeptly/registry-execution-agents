@@ -1,0 +1,18 @@
+apiVersion: registry.zeptly.dev/v1alpha1
+kind: Seal
+digestAlgorithm: zeptly-jcs-v1
+subject:
+  registry: execution-agents
+  id: synthetic.contract-clause-extractor
+  version: 0.1.0
+artifactDigest: sha256:7ace6196eb8d465e1f5f723893939008a4986e69daa0d3c3acdaa60c3f55dc1c
+sealDigest: sha256:7bc9c1d1fc8bdbab10368c6ee6b647eb6d50f262f2e66a9e304b98eff974177f
+payload:
+  - path: contracts/input.schema.json
+    sha256: sha256:5500a43a9407df4ed50394434200151a9d521d55871509c04805f9440be30b96
+  - path: contracts/output.schema.json
+    sha256: sha256:1663f5ff0c75f5dea5b8e10e316c0f39b1adca2ae93a4e9b99cf313e55532c22
+  - path: evals/golden-clauses.yaml
+    sha256: sha256:bc6a8e74c4d697aa4098dbfab3f52afb5817ce0524a020adff1a374b4aef8833
+  - path: prompts/system.md
+    sha256: sha256:c839e038d681f8c0ecaeef089da4eb7db678dfc07c8e9fc3770e2f476952637d

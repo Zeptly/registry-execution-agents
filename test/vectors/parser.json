@@ -1,0 +1,303 @@
+{
+  "digestAlgorithm": "zeptly-jcs-v1",
+  "cases": [
+    {
+      "name": "scalars",
+      "yaml": "a: 1\nb: 0.05\nc: -0\nd: 1e-7\ne: 2.5e3\nf: 9007199254740991\ng: -9007199254740991\nh: hello\ni: ~\nj: true\n",
+      "valid": true,
+      "value": {
+        "a": 1,
+        "b": 0.05,
+        "c": 0,
+        "d": 1e-07,
+        "e": 2500,
+        "f": 9007199254740991,
+        "g": -9007199254740991,
+        "h": "hello",
+        "i": null,
+        "j": true
+      },
+      "canonical": "{\"a\":1,\"b\":0.05,\"c\":0,\"d\":1e-7,\"e\":2500,\"f\":9007199254740991,\"g\":-9007199254740991,\"h\":\"hello\",\"i\":null,\"j\":true}"
+    },
+    {
+      "name": "timestamps-and-yes-no-are-strings",
+      "yaml": "a: 2026-01-01T00:00:00Z\nb: yes\nc: off\nd: No\n",
+      "valid": true,
+      "value": {
+        "a": "2026-01-01T00:00:00Z",
+        "b": "yes",
+        "c": "off",
+        "d": "No"
+      },
+      "canonical": "{\"a\":\"2026-01-01T00:00:00Z\",\"b\":\"yes\",\"c\":\"off\",\"d\":\"No\"}"
+    },
+    {
+      "name": "quoted-merge-token-is-a-string",
+      "yaml": "a: \"<<\"\n\"<<\": 1\n",
+      "valid": true,
+      "value": {
+        "a": "<<",
+        "<<": 1
+      },
+      "canonical": "{\"<<\":1,\"a\":\"<<\"}"
+    },
+    {
+      "name": "explicit-core-tags",
+      "yaml": "a: !!str 1\nb: !!int 5\nc: !!map {k: 1}\nd: !!seq [1]\n",
+      "valid": true,
+      "value": {
+        "a": "1",
+        "b": 5,
+        "c": {
+          "k": 1
+        },
+        "d": [
+          1
+        ]
+      },
+      "canonical": "{\"a\":\"1\",\"b\":5,\"c\":{\"k\":1},\"d\":[1]}"
+    },
+    {
+      "name": "flow-and-unicode",
+      "yaml": "a: [1, {b: \"caf\u00e9\"}]\n",
+      "valid": true,
+      "value": {
+        "a": [
+          1,
+          {
+            "b": "caf\u00e9"
+          }
+        ]
+      },
+      "canonical": "{\"a\":[1,{\"b\":\"caf\u00e9\"}]}"
+    },
+    {
+      "name": "empty-document",
+      "yaml": "",
+      "valid": true,
+      "value": null,
+      "canonical": "null"
+    },
+    {
+      "name": "duplicate-key",
+      "yaml": "a: 1\na: 2\n",
+      "valid": false,
+      "code": "yaml-duplicate-key"
+    },
+    {
+      "name": "anchor",
+      "yaml": "a: &x 1\n",
+      "valid": false,
+      "code": "yaml-anchor"
+    },
+    {
+      "name": "alias",
+      "yaml": "a: &x 1\nb: *x\n",
+      "valid": false,
+      "code": "yaml-alias"
+    },
+    {
+      "name": "merge-key",
+      "yaml": "a: {k: 1}\nb:\n  <<: {j: 2}\n",
+      "valid": false,
+      "code": "yaml-merge-key"
+    },
+    {
+      "name": "multiple-documents",
+      "yaml": "a: 1\n---\nb: 2\n",
+      "valid": false,
+      "code": "yaml-multiple-documents"
+    },
+    {
+      "name": "non-string-key-int",
+      "yaml": "1: x\n",
+      "valid": false,
+      "code": "yaml-non-string-key"
+    },
+    {
+      "name": "non-string-key-bool",
+      "yaml": "true: x\n",
+      "valid": false,
+      "code": "yaml-non-string-key"
+    },
+    {
+      "name": "non-string-key-null",
+      "yaml": "? ~\n: x\n",
+      "valid": false,
+      "code": "yaml-non-string-key"
+    },
+    {
+      "name": "unsupported-tag-binary",
+      "yaml": "a: !!binary aGk=\n",
+      "valid": false,
+      "code": "yaml-unsupported-tag"
+    },
+    {
+      "name": "unsupported-tag-timestamp",
+      "yaml": "a: !!timestamp 2026-01-01\n",
+      "valid": false,
+      "code": "yaml-unsupported-tag"
+    },
+    {
+      "name": "unsupported-tag-custom",
+      "yaml": "a: !foo 1\n",
+      "valid": false,
+      "code": "yaml-unsupported-tag"
+    },
+    {
+      "name": "hex-integer",
+      "yaml": "a: 0x10\n",
+      "valid": false,
+      "code": "yaml-number-not-json"
+    },
+    {
+      "name": "octal-integer",
+      "yaml": "a: 0o17\n",
+      "valid": false,
+      "code": "yaml-number-not-json"
+    },
+    {
+      "name": "plus-sign",
+      "yaml": "a: +1\n",
+      "valid": false,
+      "code": "yaml-number-not-json"
+    },
+    {
+      "name": "leading-dot",
+      "yaml": "a: .5\n",
+      "valid": false,
+      "code": "yaml-number-not-json"
+    },
+    {
+      "name": "trailing-dot",
+      "yaml": "a: 5.\n",
+      "valid": false,
+      "code": "yaml-number-not-json"
+    },
+    {
+      "name": "leading-zero",
+      "yaml": "a: 007\n",
+      "valid": false,
+      "code": "yaml-number-not-json"
+    },
+    {
+      "name": "infinity",
+      "yaml": "a: .inf\n",
+      "valid": false,
+      "code": "yaml-non-finite-number"
+    },
+    {
+      "name": "nan",
+      "yaml": "a: .nan\n",
+      "valid": false,
+      "code": "yaml-non-finite-number"
+    },
+    {
+      "name": "unsafe-integer",
+      "yaml": "a: 9007199254740993\n",
+      "valid": false,
+      "code": "yaml-unsafe-integer"
+    },
+    {
+      "name": "unsafe-integer-boundary",
+      "yaml": "a: 9007199254740992\n",
+      "valid": false,
+      "code": "yaml-unsafe-integer"
+    },
+    {
+      "name": "negative-unsafe-integer",
+      "yaml": "a: -9007199254740992\n",
+      "valid": false,
+      "code": "yaml-unsafe-integer"
+    },
+    {
+      "name": "unsafe-integer-point-zero",
+      "yaml": "a: 9007199254740993.0\n",
+      "valid": false,
+      "code": "yaml-unsafe-integer"
+    },
+    {
+      "name": "unsafe-integer-exponent",
+      "yaml": "a: 9007199254740993e0\n",
+      "valid": false,
+      "code": "yaml-unsafe-integer"
+    },
+    {
+      "name": "unsafe-integer-negative-exponent",
+      "yaml": "a: 90071992547409930e-1\n",
+      "valid": false,
+      "code": "yaml-unsafe-integer"
+    },
+    {
+      "name": "unsafe-1e16",
+      "yaml": "a: 1e16\n",
+      "valid": false,
+      "code": "yaml-unsafe-integer"
+    },
+    {
+      "name": "unsafe-1e21",
+      "yaml": "a: 1e21\n",
+      "valid": false,
+      "code": "yaml-unsafe-integer"
+    },
+    {
+      "name": "nul-escape",
+      "yaml": "a: \"x\\0y\"\n",
+      "valid": false,
+      "code": "nul-byte"
+    },
+    {
+      "name": "lone-surrogate-escape",
+      "yaml": "a: \"\\ud800\"\n",
+      "valid": false,
+      "code": "lone-surrogate"
+    },
+    {
+      "name": "syntax-error",
+      "yaml": "a: [1\n",
+      "valid": false,
+      "code": "yaml-invalid"
+    },
+    {
+      "name": "invalid-utf8",
+      "bytesHex": "613a20ff0a",
+      "valid": false,
+      "code": "utf8-invalid"
+    },
+    {
+      "name": "bom",
+      "bytesHex": "efbbbf613a20310a",
+      "valid": false,
+      "code": "utf8-bom"
+    },
+    {
+      "name": "raw-nul",
+      "bytesHex": "613a203100",
+      "valid": false,
+      "code": "nul-byte"
+    },
+    {
+      "name": "crlf",
+      "bytesHex": "613a20310d0a",
+      "valid": false,
+      "code": "line-ending-cr"
+    },
+    {
+      "name": "lone-cr",
+      "bytesHex": "613a20310d",
+      "valid": false,
+      "code": "line-ending-cr"
+    },
+    {
+      "name": "fractional-near-unsafe",
+      "yaml": "a: 9007199254740993.5\nb: 123456789012345678e-2\n",
+      "valid": true,
+      "value": {
+        "a": 9007199254740994.0,
+        "b": 1234567890123456.8
+      },
+      "canonical": "{\"a\":9007199254740994,\"b\":1234567890123456.8}",
+      "note": "fractional literals keep their (rounded) double value; only integer-valued literals are rejected"
+    }
+  ]
+}

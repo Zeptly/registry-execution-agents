@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.zeptly.dev/registry-execution-agents/v1alpha1/eval-suite.schema.json",
+  "title": "Execution Agent evaluation suite",
+  "description": "Declarative test cases. Case inputs are validated against the agent's input contract. Execution is performed by the runtime/eval harness, not this repository.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "apiVersion",
+    "kind",
+    "id",
+    "version",
+    "cases"
+  ],
+  "properties": {
+    "apiVersion": {
+      "const": "registry.zeptly.dev/v1alpha1"
+    },
+    "kind": {
+      "const": "EvaluationSuite"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*([_-][a-z0-9]+)*$"
+    },
+    "description": {
+      "type": "string"
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "input",
+          "assertions"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*([_-][a-z0-9]+)*$"
+          },
+          "input": {},
+          "assertions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "type"
+              ],
+              "properties": {
+                "type": {
+                  "enum": [
+                    "output_schema_valid",
+                    "json_path_equals",
+                    "json_path_matches",
+                    "no_tool_call",
+                    "judge"
+                  ]
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        }
+      }
+    },
+    "version": {
+      "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/semver"
+    }
+  }
+}

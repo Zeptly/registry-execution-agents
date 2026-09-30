@@ -1,0 +1,365 @@
+{
+  "digestAlgorithm": "zeptly-jcs-v1",
+  "artifact": {
+    "apiVersion": "registry.zeptly.dev/v1alpha1",
+    "kind": "ExecutionAgent",
+    "metadata": {
+      "id": "golden.vector",
+      "version": "9.9.9",
+      "registry": "execution-agents",
+      "origin": {
+        "type": "native"
+      },
+      "maturity": "candidate",
+      "lifecycle": "active"
+    },
+    "spec": {
+      "name": "Golden",
+      "ratio": 0.05,
+      "steps": [
+        1,
+        2,
+        3
+      ],
+      "text": "caf\u00e9",
+      "runtimeApprovals": [
+        {
+          "before": "posting",
+          "approver": "workspace_member"
+        }
+      ]
+    },
+    "references": [
+      {
+        "registry": "skills",
+        "id": "source-evaluation",
+        "version": "1.0.0",
+        "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "digestAlgorithm": "zeptly-jcs-v1"
+      }
+    ],
+    "provenance": {
+      "createdAt": "2026-01-01T00:00:00Z",
+      "authors": [
+        "github:golden"
+      ],
+      "sourceRefs": [],
+      "transformations": [],
+      "synthetic": true
+    },
+    "security": {
+      "classification": "internal",
+      "capabilities": [
+        {
+          "registry": "capabilities",
+          "id": "knowledge.search",
+          "version": "1.0.0"
+        }
+      ],
+      "approvals": []
+    },
+    "attestations": []
+  },
+  "payload": {
+    "prompts/system.md": "Golden prompt\n",
+    "contracts/input.schema.json": "{\"type\":\"object\"}\n",
+    "evals/golden.yaml": "apiVersion: registry.zeptly.dev/v1alpha1\nkind: EvaluationSuite\nid: golden\nversion: 1.0.0\ncases: []\n"
+  },
+  "expected": {
+    "projectionCanonical": "{\"apiVersion\":\"registry.zeptly.dev/v1alpha1\",\"kind\":\"ExecutionAgent\",\"metadata\":{\"id\":\"golden.vector\",\"origin\":{\"type\":\"native\"},\"registry\":\"execution-agents\"},\"provenance\":{\"authors\":[\"github:golden\"],\"createdAt\":\"2026-01-01T00:00:00Z\",\"sourceRefs\":[],\"synthetic\":true,\"transformations\":[]},\"references\":[{\"digest\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"digestAlgorithm\":\"zeptly-jcs-v1\",\"id\":\"source-evaluation\",\"registry\":\"skills\",\"version\":\"1.0.0\"}],\"security\":{\"capabilities\":[{\"id\":\"knowledge.search\",\"registry\":\"capabilities\",\"version\":\"1.0.0\"}],\"classification\":\"internal\"},\"spec\":{\"name\":\"Golden\",\"ratio\":0.05,\"runtimeApprovals\":[{\"approver\":\"workspace_member\",\"before\":\"posting\"}],\"steps\":[1,2,3],\"text\":\"caf\u00e9\"}}",
+    "artifactDigest": "sha256:3c412e208beb87e298234b08e5bb85b7840891473f236c627f6a0e388e785da2",
+    "payloadEntries": [
+      {
+        "path": "contracts/input.schema.json",
+        "sha256": "sha256:9091a8164f97eaca182b3d06d0e5a59e923c880ebc0148056c453c651f5b46cb"
+      },
+      {
+        "path": "evals/golden.yaml",
+        "sha256": "sha256:73369d2b99d7ba2f66869e191300d916295b234caa1867a7290ddbd6a22c2c47"
+      },
+      {
+        "path": "prompts/system.md",
+        "sha256": "sha256:f8a437047ace46c1e39dbd7877d36a96d24b3539b4c7bd618f1c4eb5f6db3d78"
+      }
+    ],
+    "sealInputCanonical": "{\"id\":\"golden.vector\",\"payload\":[{\"path\":\"contracts/input.schema.json\",\"sha256\":\"sha256:9091a8164f97eaca182b3d06d0e5a59e923c880ebc0148056c453c651f5b46cb\"},{\"path\":\"evals/golden.yaml\",\"sha256\":\"sha256:73369d2b99d7ba2f66869e191300d916295b234caa1867a7290ddbd6a22c2c47\"},{\"path\":\"prompts/system.md\",\"sha256\":\"sha256:f8a437047ace46c1e39dbd7877d36a96d24b3539b4c7bd618f1c4eb5f6db3d78\"}],\"registry\":\"execution-agents\",\"version\":\"9.9.9\"}",
+    "sealDigest": "sha256:cf0135e97a93c209758c2bfe061e92c316bb8a6d7bb7123be10325518e8e36f2"
+  },
+  "variants": [
+    {
+      "name": "version-only",
+      "mutation": {
+        "set": {
+          "path": [
+            "metadata",
+            "version"
+          ],
+          "value": "9.9.10"
+        }
+      },
+      "artifactDigestChanges": false,
+      "sealDigestChanges": true,
+      "artifactDigest": "sha256:3c412e208beb87e298234b08e5bb85b7840891473f236c627f6a0e388e785da2",
+      "sealDigest": "sha256:57f8b3770a42375e260acd8eebfbe52349937355cbddf6e84c40be301cd1bf7f"
+    },
+    {
+      "name": "maturity",
+      "mutation": {
+        "set": {
+          "path": [
+            "metadata",
+            "maturity"
+          ],
+          "value": "canonical"
+        }
+      },
+      "artifactDigestChanges": false,
+      "sealDigestChanges": false,
+      "artifactDigest": "sha256:3c412e208beb87e298234b08e5bb85b7840891473f236c627f6a0e388e785da2",
+      "sealDigest": "sha256:cf0135e97a93c209758c2bfe061e92c316bb8a6d7bb7123be10325518e8e36f2"
+    },
+    {
+      "name": "lifecycle-marker",
+      "mutation": {
+        "set": {
+          "path": [
+            "metadata",
+            "lifecycle"
+          ],
+          "value": "deprecated"
+        }
+      },
+      "artifactDigestChanges": false,
+      "sealDigestChanges": false,
+      "artifactDigest": "sha256:3c412e208beb87e298234b08e5bb85b7840891473f236c627f6a0e388e785da2",
+      "sealDigest": "sha256:cf0135e97a93c209758c2bfe061e92c316bb8a6d7bb7123be10325518e8e36f2"
+    },
+    {
+      "name": "attestation-appended",
+      "mutation": {
+        "append": {
+          "path": [
+            "attestations"
+          ],
+          "value": {
+            "type": "provenance",
+            "ref": "evidence://x",
+            "subjectDigest": "sha256:3c412e208beb87e298234b08e5bb85b7840891473f236c627f6a0e388e785da2",
+            "sealDigest": "sha256:cf0135e97a93c209758c2bfe061e92c316bb8a6d7bb7123be10325518e8e36f2"
+          }
+        }
+      },
+      "artifactDigestChanges": false,
+      "sealDigestChanges": false,
+      "artifactDigest": "sha256:3c412e208beb87e298234b08e5bb85b7840891473f236c627f6a0e388e785da2",
+      "sealDigest": "sha256:cf0135e97a93c209758c2bfe061e92c316bb8a6d7bb7123be10325518e8e36f2"
+    },
+    {
+      "name": "governance-approval-appended",
+      "mutation": {
+        "append": {
+          "path": [
+            "security",
+            "approvals"
+          ],
+          "value": {
+            "type": "promotion",
+            "approver": "team:x",
+            "approvedAt": "2026-01-01T00:00:00Z",
+            "subjectDigest": "sha256:3c412e208beb87e298234b08e5bb85b7840891473f236c627f6a0e388e785da2",
+            "sealDigest": "sha256:cf0135e97a93c209758c2bfe061e92c316bb8a6d7bb7123be10325518e8e36f2"
+          }
+        }
+      },
+      "artifactDigestChanges": false,
+      "sealDigestChanges": false,
+      "artifactDigest": "sha256:3c412e208beb87e298234b08e5bb85b7840891473f236c627f6a0e388e785da2",
+      "sealDigest": "sha256:cf0135e97a93c209758c2bfe061e92c316bb8a6d7bb7123be10325518e8e36f2"
+    },
+    {
+      "name": "identity-id",
+      "mutation": {
+        "set": {
+          "path": [
+            "metadata",
+            "id"
+          ],
+          "value": "golden.other"
+        }
+      },
+      "artifactDigestChanges": true,
+      "sealDigestChanges": true,
+      "artifactDigest": "sha256:7076df01d3a7e487fb43f29968ad309c184d34ad1590c1c09d412d453573f0ff",
+      "sealDigest": "sha256:ecd474c6f388b5711a542b9a3c2856ad479e77e5059c420bcdad773c55eff4eb"
+    },
+    {
+      "name": "origin",
+      "mutation": {
+        "set": {
+          "path": [
+            "metadata",
+            "origin"
+          ],
+          "value": {
+            "type": "upstream-seed",
+            "import": {
+              "source": "upstream-x"
+            }
+          }
+        }
+      },
+      "artifactDigestChanges": true,
+      "sealDigestChanges": false,
+      "artifactDigest": "sha256:1f078ca0282207bc018ea89afd014567e7d62c3144bbeeeeb9d1a74e2bd1eb0b",
+      "sealDigest": "sha256:cf0135e97a93c209758c2bfe061e92c316bb8a6d7bb7123be10325518e8e36f2"
+    },
+    {
+      "name": "spec-value",
+      "mutation": {
+        "set": {
+          "path": [
+            "spec",
+            "ratio"
+          ],
+          "value": 0.06
+        }
+      },
+      "artifactDigestChanges": true,
+      "sealDigestChanges": false,
+      "artifactDigest": "sha256:f665dfa6e216d32a2fc5ea1841ee72b52b89d10a8fea77c591340e8670bb9462",
+      "sealDigest": "sha256:cf0135e97a93c209758c2bfe061e92c316bb8a6d7bb7123be10325518e8e36f2"
+    },
+    {
+      "name": "runtime-approval-requirement",
+      "mutation": {
+        "set": {
+          "path": [
+            "spec",
+            "runtimeApprovals"
+          ],
+          "value": []
+        }
+      },
+      "artifactDigestChanges": true,
+      "sealDigestChanges": false,
+      "artifactDigest": "sha256:2ba4cf7da4f23de9fc4eb1b6ed96999384b2d026dd676071fdd122033d16585e",
+      "sealDigest": "sha256:cf0135e97a93c209758c2bfe061e92c316bb8a6d7bb7123be10325518e8e36f2"
+    },
+    {
+      "name": "references",
+      "mutation": {
+        "set": {
+          "path": [
+            "references"
+          ],
+          "value": []
+        }
+      },
+      "artifactDigestChanges": true,
+      "sealDigestChanges": false,
+      "artifactDigest": "sha256:76d94524aa178bea29dc327b55011db5013405d18f895956833639b8947a1fa7",
+      "sealDigest": "sha256:cf0135e97a93c209758c2bfe061e92c316bb8a6d7bb7123be10325518e8e36f2"
+    },
+    {
+      "name": "provenance",
+      "mutation": {
+        "set": {
+          "path": [
+            "provenance",
+            "authors"
+          ],
+          "value": [
+            "github:golden",
+            "github:other"
+          ]
+        }
+      },
+      "artifactDigestChanges": true,
+      "sealDigestChanges": false,
+      "artifactDigest": "sha256:a53621fdf08a23f92d44fe8a2712f7e244f8ede3b060128a6caaa927ac03c084",
+      "sealDigest": "sha256:cf0135e97a93c209758c2bfe061e92c316bb8a6d7bb7123be10325518e8e36f2"
+    },
+    {
+      "name": "classification",
+      "mutation": {
+        "set": {
+          "path": [
+            "security",
+            "classification"
+          ],
+          "value": "restricted"
+        }
+      },
+      "artifactDigestChanges": true,
+      "sealDigestChanges": false,
+      "artifactDigest": "sha256:dc88a3288222cad767b6f93d0f19899153ed740a8b5e0b2297c6b0f143f7bad3",
+      "sealDigest": "sha256:cf0135e97a93c209758c2bfe061e92c316bb8a6d7bb7123be10325518e8e36f2"
+    },
+    {
+      "name": "capabilities",
+      "mutation": {
+        "set": {
+          "path": [
+            "security",
+            "capabilities"
+          ],
+          "value": []
+        }
+      },
+      "artifactDigestChanges": true,
+      "sealDigestChanges": false,
+      "artifactDigest": "sha256:237c84e2835baa26a797237eacd13e42602bb21cd54b03e23fb94fe6a459b130",
+      "sealDigest": "sha256:cf0135e97a93c209758c2bfe061e92c316bb8a6d7bb7123be10325518e8e36f2"
+    },
+    {
+      "name": "payload-mutation",
+      "mutation": {
+        "payloadSet": {
+          "path": "prompts/system.md",
+          "content": "Changed prompt\n"
+        }
+      },
+      "artifactDigestChanges": false,
+      "sealDigestChanges": true,
+      "artifactDigest": "sha256:3c412e208beb87e298234b08e5bb85b7840891473f236c627f6a0e388e785da2",
+      "sealDigest": "sha256:5900ef4bce699799dc185122a2c2e1bb3045873df8221c1ef3803d5bb496efa4"
+    },
+    {
+      "name": "payload-deletion",
+      "mutation": {
+        "payloadDelete": "evals/golden.yaml"
+      },
+      "artifactDigestChanges": false,
+      "sealDigestChanges": true,
+      "artifactDigest": "sha256:3c412e208beb87e298234b08e5bb85b7840891473f236c627f6a0e388e785da2",
+      "sealDigest": "sha256:00c23f3867e9c921263f3b70ad6455db2857817341e01087a4a9e8f2f42685fd"
+    },
+    {
+      "name": "payload-added",
+      "mutation": {
+        "payloadSet": {
+          "path": "prompts/extra.md",
+          "content": "x\n"
+        }
+      },
+      "artifactDigestChanges": false,
+      "sealDigestChanges": true,
+      "artifactDigest": "sha256:3c412e208beb87e298234b08e5bb85b7840891473f236c627f6a0e388e785da2",
+      "sealDigest": "sha256:3e23c3360d26e69366864195a7e0c555086da1e7c66479b768205d002ae5e729"
+    }
+  ],
+  "lineEndingRejections": [
+    {
+      "name": "crlf-payload",
+      "path": "prompts/system.md",
+      "bytesHex": "610d0a620a",
+      "code": "line-ending-cr"
+    },
+    {
+      "name": "lone-cr-payload",
+      "path": "prompts/system.md",
+      "bytesHex": "610d620a",
+      "code": "line-ending-cr"
+    }
+  ]
+}

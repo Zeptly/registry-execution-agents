@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["clauses"],
+  "properties": {
+    "clauses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "text", "page"],
+        "properties": {
+          "type": { "enum": ["termination", "liability", "renewal"] },
+          "text": { "type": "string" },
+          "page": { "type": "integer", "minimum": 1 },
+          "paragraph": { "type": "integer", "minimum": 1 }
+        }
+      }
+    }
+  }
+}

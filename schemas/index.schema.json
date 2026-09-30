@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.zeptly.dev/registry/v1alpha1/index.schema.json",
+  "title": "Generated registry index (deterministic derived data, Protocol v0.2)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "apiVersion",
+    "kind",
+    "registry",
+    "domain",
+    "digestAlgorithm",
+    "entries"
+  ],
+  "properties": {
+    "apiVersion": {
+      "const": "registry.zeptly.dev/v1alpha1"
+    },
+    "kind": {
+      "const": "RegistryIndex"
+    },
+    "registry": {
+      "const": "execution-agents"
+    },
+    "domain": {
+      "enum": [
+        "production",
+        "synthetic"
+      ]
+    },
+    "digestAlgorithm": {
+      "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/digestAlgorithm"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "registry",
+          "id",
+          "version",
+          "artifactDigest",
+          "sealDigest",
+          "digestAlgorithm",
+          "maturity",
+          "lifecycle",
+          "origin",
+          "location"
+        ],
+        "properties": {
+          "kind": {
+            "const": "ExecutionAgent"
+          },
+          "registry": {
+            "const": "execution-agents"
+          },
+          "id": {
+            "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/id"
+          },
+          "version": {
+            "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/semver"
+          },
+          "artifactDigest": {
+            "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/digest",
+            "description": "The pin target for references and RuntimeLock subject.digest."
+          },
+          "sealDigest": {
+            "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/digest"
+          },
+          "digestAlgorithm": {
+            "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/digestAlgorithm"
+          },
+          "maturity": {
+            "enum": [
+              "candidate",
+              "canonical"
+            ]
+          },
+          "lifecycle": {
+            "enum": [
+              "active",
+              "deprecated",
+              "revoked"
+            ]
+          },
+          "origin": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "enum": [
+                  "native",
+                  "upstream-seed",
+                  "discovered",
+                  "refined",
+                  "evolved"
+                ]
+              },
+              "evolutionKind": {
+                "enum": [
+                  "discovered",
+                  "refined",
+                  "generalised"
+                ]
+              }
+            }
+          },
+          "location": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

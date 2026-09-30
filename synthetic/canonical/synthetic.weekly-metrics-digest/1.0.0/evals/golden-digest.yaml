@@ -1,0 +1,16 @@
+apiVersion: registry.zeptly.dev/v1alpha1
+kind: EvaluationSuite
+id: golden-digest
+version: 1.0.0
+cases:
+- id: two-metrics
+  input:
+    metrics:
+    - signups
+    - active_workspaces
+    channel_ref: channel:team-insights
+    week_ending: '2026-09-27'
+  assertions:
+  - type: output_schema_valid
+  - type: judge
+    rubric: Digest leads with the largest movement and cites numbers for every anomaly.

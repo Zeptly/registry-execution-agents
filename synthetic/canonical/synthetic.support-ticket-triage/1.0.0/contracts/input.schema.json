@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ticket_id", "subject", "body"],
+  "properties": {
+    "ticket_id": { "type": "string", "minLength": 1 },
+    "subject": { "type": "string", "maxLength": 300 },
+    "body": { "type": "string", "maxLength": 20000 },
+    "customer_tier": { "enum": ["free", "standard", "enterprise"] },
+    "locale": { "type": "string" }
+  }
+}

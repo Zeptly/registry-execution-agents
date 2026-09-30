@@ -1,0 +1,852 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.zeptly.dev/registry-execution-agents/v1alpha1/execution-agent.schema.json",
+  "title": "ExecutionAgent artifact (Zeptly Registry Protocol v0.1 envelope)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec",
+    "references",
+    "provenance",
+    "security",
+    "attestations"
+  ],
+  "properties": {
+    "apiVersion": {
+      "const": "registry.zeptly.dev/v1alpha1"
+    },
+    "kind": {
+      "const": "ExecutionAgent"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/id"
+        },
+        "version": {
+          "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/semver"
+        },
+        "registry": {
+          "const": "execution-agents"
+        },
+        "origin": {
+          "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/origin"
+        },
+        "maturity": {
+          "enum": [
+            "candidate",
+            "canonical"
+          ]
+        },
+        "lifecycle": {
+          "enum": [
+            "active",
+            "deprecated",
+            "revoked"
+          ],
+          "description": "Publication marker only (excluded from the digest); must be 'active' at publication. The effective lifecycle is the append-only overlay."
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "registry",
+        "origin",
+        "maturity",
+        "lifecycle"
+      ]
+    },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 80
+        },
+        "description": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 500
+        },
+        "purpose": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "summary": {
+              "type": "string",
+              "minLength": 10
+            },
+            "goals": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 3
+              }
+            },
+            "nonGoals": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 3
+              }
+            }
+          },
+          "required": [
+            "summary",
+            "goals"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/label"
+          }
+        },
+        "owners": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/principal"
+          }
+        },
+        "instructions": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "type": "string",
+              "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+            }
+          },
+          "required": [
+            "file"
+          ]
+        },
+        "contract": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "input": {
+              "type": "object",
+              "additionalProperties": false,
+              "oneOf": [
+                {
+                  "required": [
+                    "schema"
+                  ]
+                },
+                {
+                  "required": [
+                    "schemaFile"
+                  ]
+                }
+              ],
+              "properties": {
+                "schema": {
+                  "type": "object"
+                },
+                "schemaFile": {
+                  "type": "string",
+                  "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+                }
+              }
+            },
+            "output": {
+              "type": "object",
+              "additionalProperties": false,
+              "oneOf": [
+                {
+                  "required": [
+                    "schema"
+                  ]
+                },
+                {
+                  "required": [
+                    "schemaFile"
+                  ]
+                }
+              ],
+              "properties": {
+                "schema": {
+                  "type": "object"
+                },
+                "schemaFile": {
+                  "type": "string",
+                  "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+                }
+              }
+            },
+            "delivery": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "outputMode": {
+                  "enum": [
+                    "inline",
+                    "artifact_ref"
+                  ]
+                },
+                "maxInlineBytes": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "required": [
+            "input",
+            "output"
+          ]
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "ref": {
+                "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/platformReference"
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "capability": {
+                "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/platformReference"
+              },
+              "sideEffects": {
+                "enum": [
+                  "none",
+                  "reversible",
+                  "irreversible"
+                ]
+              },
+              "requiresApproval": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ref"
+            ]
+          }
+        },
+        "modelPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tier": {
+              "enum": [
+                "fast",
+                "balanced",
+                "frontier"
+              ]
+            },
+            "models": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/platformReference"
+              }
+            },
+            "requiredFeatures": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "tool_use",
+                  "structured_output",
+                  "vision",
+                  "long_context",
+                  "reasoning"
+                ]
+              }
+            },
+            "temperature": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2
+            },
+            "maxOutputTokens": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "budget": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "maxInputTokensPerRun": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "maxOutputTokensPerRun": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "maxCostUsdPerRun": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              }
+            }
+          },
+          "required": [
+            "tier",
+            "models"
+          ]
+        },
+        "executionPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "enum": [
+                "single_pass",
+                "workflow",
+                "agent_loop"
+              ]
+            },
+            "maxSteps": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            "maxConcurrentToolCalls": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "idempotency": {
+              "enum": [
+                "required",
+                "best_effort",
+                "none"
+              ]
+            },
+            "triggers": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "manual",
+                  "schedule",
+                  "event",
+                  "api",
+                  "orchestrator"
+                ]
+              }
+            },
+            "humanInTheLoop": {
+              "enum": [
+                "never",
+                "on_demand",
+                "required_for_side_effects"
+              ]
+            }
+          },
+          "required": [
+            "mode",
+            "maxSteps",
+            "idempotency"
+          ]
+        },
+        "timeoutPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "runSeconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "stepSeconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "toolCallSeconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "onTimeout": {
+              "enum": [
+                "fail",
+                "checkpoint_and_suspend"
+              ]
+            }
+          },
+          "required": [
+            "runSeconds"
+          ]
+        },
+        "retryPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxAttempts": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            "backoff": {
+              "enum": [
+                "none",
+                "fixed",
+                "exponential"
+              ]
+            },
+            "initialDelaySeconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "maxDelaySeconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "retryOn": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "transient_tool_error",
+                  "model_rate_limit",
+                  "model_overloaded",
+                  "timeout",
+                  "output_validation_failed"
+                ]
+              }
+            },
+            "neverRetryOn": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "permission_denied",
+                  "policy_violation",
+                  "input_invalid",
+                  "approval_rejected"
+                ]
+              }
+            }
+          },
+          "required": [
+            "maxAttempts"
+          ]
+        },
+        "checkpointPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "strategy": {
+              "enum": [
+                "none",
+                "per_step",
+                "before_side_effects",
+                "interval"
+              ]
+            },
+            "intervalSeconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "resumable": {
+              "type": "boolean"
+            },
+            "capture": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "context",
+                  "tool_calls",
+                  "state",
+                  "artifacts"
+                ]
+              }
+            },
+            "rollback": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "supported": {
+                  "type": "boolean"
+                },
+                "compensation": {
+                  "enum": [
+                    "none",
+                    "tool_declared",
+                    "manual"
+                  ]
+                }
+              },
+              "required": [
+                "supported"
+              ]
+            }
+          },
+          "required": [
+            "strategy",
+            "resumable"
+          ]
+        },
+        "state": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "persistence": {
+              "enum": [
+                "none",
+                "run",
+                "durable"
+              ]
+            },
+            "stores": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/label"
+                  },
+                  "kind": {
+                    "enum": [
+                      "kv",
+                      "document",
+                      "blob",
+                      "vector",
+                      "relational"
+                    ]
+                  },
+                  "scope": {
+                    "enum": [
+                      "run",
+                      "agent",
+                      "workspace"
+                    ]
+                  },
+                  "retentionDays": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "containsPii": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "name",
+                  "kind"
+                ]
+              }
+            }
+          },
+          "required": [
+            "persistence"
+          ]
+        },
+        "dataHandling": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "processesPii": {
+              "type": "boolean"
+            },
+            "mayPersistInputs": {
+              "type": "boolean"
+            },
+            "redactInEvidence": {
+              "type": "boolean"
+            },
+            "dataResidency": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z]{2}(-[a-z0-9]+)*$"
+              }
+            }
+          },
+          "required": [
+            "processesPii"
+          ]
+        },
+        "secrets": {
+          "type": "array",
+          "description": "Secret NAMES the runtime must inject; never values.",
+          "items": {
+            "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/platformReference"
+          }
+        },
+        "permissions": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "scopes": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*:(read|write|admin)$"
+              }
+            },
+            "egress": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "mode": {
+                  "enum": [
+                    "none",
+                    "declared_capabilities_only"
+                  ]
+                }
+              },
+              "required": [
+                "mode"
+              ]
+            },
+            "sideEffects": {
+              "enum": [
+                "none",
+                "reversible",
+                "irreversible"
+              ]
+            },
+            "runtimeApprovals": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "before": {
+                    "type": "string",
+                    "minLength": 3
+                  },
+                  "approver": {
+                    "enum": [
+                      "workspace_member",
+                      "workspace_admin",
+                      "owner_team"
+                    ]
+                  }
+                },
+                "required": [
+                  "before",
+                  "approver"
+                ]
+              }
+            }
+          },
+          "required": [
+            "scopes",
+            "egress",
+            "sideEffects"
+          ]
+        },
+        "evaluation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "suites": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/label"
+                  },
+                  "file": {
+                    "type": "string",
+                    "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+                  },
+                  "kind": {
+                    "enum": [
+                      "golden",
+                      "regression",
+                      "safety",
+                      "cost",
+                      "latency",
+                      "human_review"
+                    ]
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "minPassRate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "required": [
+                  "id",
+                  "file",
+                  "kind",
+                  "required"
+                ]
+              }
+            },
+            "promotionGates": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "requireNoRegression": {
+                  "type": "boolean"
+                },
+                "humanApproval": {
+                  "type": "boolean"
+                },
+                "maxCostIncreasePct": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "maxLatencyIncreasePct": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "minEvaluatedRuns": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "requireNoRegression",
+                "humanApproval"
+              ]
+            }
+          },
+          "required": [
+            "suites",
+            "promotionGates"
+          ]
+        },
+        "observability": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tracing": {
+              "enum": [
+                "off",
+                "standard",
+                "verbose"
+              ]
+            },
+            "metrics": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "latency",
+                  "cost",
+                  "tokens",
+                  "tool_calls",
+                  "retries",
+                  "outcome"
+                ]
+              }
+            },
+            "logLevel": {
+              "enum": [
+                "error",
+                "warn",
+                "info",
+                "debug"
+              ]
+            },
+            "evidence": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "recordTape": {
+                  "type": "boolean"
+                },
+                "tapeIncludes": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "items": {
+                    "enum": [
+                      "prompts",
+                      "model_outputs",
+                      "tool_calls",
+                      "tool_results",
+                      "checkpoints",
+                      "state_diffs"
+                    ]
+                  }
+                },
+                "retentionDays": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "samplingRate": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "required": [
+                "recordTape"
+              ]
+            }
+          },
+          "required": [
+            "tracing",
+            "evidence"
+          ]
+        },
+        "compatibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "requiredRuntimeFeatures": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/label"
+              }
+            }
+          }
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "purpose",
+        "owners",
+        "instructions",
+        "contract",
+        "modelPolicy",
+        "executionPolicy",
+        "timeoutPolicy",
+        "retryPolicy",
+        "checkpointPolicy",
+        "state",
+        "dataHandling",
+        "permissions",
+        "evaluation",
+        "observability"
+      ]
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/reference"
+      }
+    },
+    "provenance": {
+      "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/provenance"
+    },
+    "security": {
+      "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/security"
+    },
+    "attestations": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/attestation"
+      }
+    }
+  }
+}

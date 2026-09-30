@@ -1,0 +1,8 @@
+{
+  "apiVersion": "registry.zeptly.dev/v1alpha1",
+  "kind": "RegistryIndex",
+  "registry": "execution-agents",
+  "domain": "production",
+  "digestAlgorithm": "zeptly-jcs-v1",
+  "entries": []
+}
