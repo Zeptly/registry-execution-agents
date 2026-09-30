@@ -3,7 +3,8 @@
 ## Structure
 
 ```yaml
-{ registry: skills, id: ticket-classification, version: "^1.0.0", digest: null }
+{ registry: skills, id: ticket-classification, version: "^1.0.0" }
+# pinned: { …, version: 1.2.0, digest: sha256:…, digestAlgorithm: zeptly-jcs-v1 }
 ```
 
 - `references[]` (envelope): dependencies on registry artifacts; `registry` ∈ `skills | tiny-agents | execution-agents | qb-agents`.
@@ -23,6 +24,8 @@ Two kinds of local `execution-agents` reference are validated differently:
 
 The effective lifecycle comes from the append-only overlay for the exact `(version, digest)`. A dependent that is itself effectively `revoked` is not held to dependency eligibility (it can no longer run). This is validation-time behaviour only; it is not a resolver.
 
+Pins use the **artifactDigest**; any reference carrying a digest also carries `digestAlgorithm: zeptly-jcs-v1`. Prerelease versions satisfy a range only when the range names a prerelease; malformed ranges (`*`, `1.x`, `>=`, `^1.0`, build metadata) are rejected with code `invalid-range`.
+
 ## Pinning
 
 | Maturity | Requirement |
@@ -32,12 +35,12 @@ The effective lifecycle comes from the append-only overlay for the exact `(versi
 
 ## Runtime locks are runtime-owned
 
-This registry does **not** generate, store or validate runtime locks. Producing a lock (declared range → exact version → digest, recorded in evidence) is a runtime responsibility. The registry supplies the inputs only: the index (`registry/index.json`), the seal digest, and structurally valid references. No registry-side lock shape is defined here; when a shared lock shape exists, the runtime will emit it, including an explicit representation of unresolved foreign references. Foreign (non-`execution-agents`) references are validated structurally only, and the registry never claims they resolved.
+This registry does **not** implement a resolver, generate locks or read peer indexes (Protocol v0.2 §13.5 fixtures are therefore not provided here). Producing a `RuntimeLock` (`complete`, `entries[].requested/status/unresolved{code,message}`, e.g. `no-peer-index`, `invalid-range`) is a runtime responsibility. The registry's obligation is that its generated index is consumable by such a resolver: each entry carries `registry`, `id`, `version`, `artifactDigest`, `sealDigest`, `digestAlgorithm`, `maturity`, effective `lifecycle`, `origin` and `location`, and the top level carries `domain`. Production and synthetic indexes are separate and must not be mixed. Foreign (non-`execution-agents`) references are validated structurally only; the registry never claims they resolved.
 
 ## Resolution model
 
 ```
-declared range → resolver → exact version → content digest → runtime lock → evidence
+declared range → resolver → exact version → artifact digest → runtime lock → evidence
 ```
 
-The resolver (a runtime concern) picks an exact version from the index (`registry/index.json`: identity, version, digest, maturity, lifecycle, origin, location), verifies the digest against `seal.yaml`, refuses `revoked`, and records the lock in evidence. The digest algorithm is `computeSeal` in `scripts/lib/core.mjs`; consumers may port it.
+The resolver (a runtime concern) picks an exact version from the index, verifies the digest against `seal.yaml`, refuses `revoked`, resolves `deprecated` only by exact pin, requires explicit opt-in for candidates, and records the lock in evidence. Index ordering (code-point `id`, SemVer, digests) is separate from JCS key ordering (UTF-16).

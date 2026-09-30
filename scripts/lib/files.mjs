@@ -116,7 +116,8 @@ export function scanPayloadContent(dir, files) {
     }
     let parsed;
     try {
-      parsed = ext === ".json" ? JSON.parse(text) : parseYamlStrict(text);
+      if (ext === ".json") JSON.parse(text); // JSON syntax first (JSON Lines/NDJSON fail here); then the v0.2 subset rules below
+      parsed = parseYamlStrict(text);
     } catch (e) {
       errors.push(`${rel}: unparseable ${ext === ".json" ? "JSON (JSON Lines/NDJSON are not allowed)" : "YAML"}: ${e.message.split("\n")[0]}`);
       continue;

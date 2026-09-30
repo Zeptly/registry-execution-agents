@@ -1,29 +1,76 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.zeptly.dev/registry/v1alpha1/seal.schema.json",
-  "title": "Seal — content-addressed identity of a published artifact version",
+  "title": "Seal — artifact digest and directory seal of a published artifact version (Protocol v0.2)",
   "type": "object",
   "additionalProperties": false,
-  "required": ["apiVersion", "kind", "subject", "algorithm", "digest", "artifactDigest", "excludedFields", "files"],
+  "required": [
+    "apiVersion",
+    "kind",
+    "digestAlgorithm",
+    "subject",
+    "artifactDigest",
+    "sealDigest",
+    "payload"
+  ],
   "properties": {
-    "apiVersion": { "const": "registry.zeptly.dev/v1alpha1" },
-    "kind": { "const": "Seal" },
+    "apiVersion": {
+      "const": "registry.zeptly.dev/v1alpha1"
+    },
+    "kind": {
+      "const": "Seal"
+    },
+    "digestAlgorithm": {
+      "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/digestAlgorithm"
+    },
     "subject": {
-      "type": "object", "additionalProperties": false, "required": ["registry", "id", "version"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registry",
+        "id",
+        "version"
+      ],
       "properties": {
-        "registry": { "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/registryLabel" },
-        "id": { "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/id" },
-        "version": { "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/semver" }
+        "registry": {
+          "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/registryLabel"
+        },
+        "id": {
+          "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/id"
+        },
+        "version": {
+          "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/semver"
+        }
       }
     },
-    "algorithm": { "const": "sha256" },
-    "digest": { "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/digest" },
-    "artifactDigest": { "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/digest" },
-    "excludedFields": { "type": "array", "items": { "type": "string" } },
-    "files": {
-      "type": "object",
-      "propertyNames": { "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$" },
-      "additionalProperties": { "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/digest" }
+    "artifactDigest": {
+      "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/digest",
+      "description": "sha256(JCS(artifact projection))"
+    },
+    "sealDigest": {
+      "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/digest",
+      "description": "sha256(JCS({registry,id,version,payload[]}))"
+    },
+    "payload": {
+      "type": "array",
+      "description": "Every permitted payload file, ordered by normalized POSIX path (code-point order).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+          },
+          "sha256": {
+            "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/digest"
+          }
+        }
+      }
     }
   }
 }

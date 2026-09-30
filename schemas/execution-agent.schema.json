@@ -44,8 +44,12 @@
           ]
         },
         "lifecycle": {
-          "const": "active",
-          "description": "Publication marker only, excluded from the digest. The effective lifecycle is the append-only overlay."
+          "enum": [
+            "active",
+            "deprecated",
+            "revoked"
+          ],
+          "description": "Publication marker only (excluded from the digest); must be 'active' at publication. The effective lifecycle is the append-only overlay."
         }
       },
       "required": [

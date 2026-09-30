@@ -4,15 +4,34 @@
   "title": "Lifecycle overlay — append-only lifecycle events for one identity",
   "type": "object",
   "additionalProperties": false,
-  "required": ["apiVersion", "kind", "subject", "events"],
+  "required": [
+    "apiVersion",
+    "kind",
+    "subject",
+    "events",
+    "digestAlgorithm"
+  ],
   "properties": {
-    "apiVersion": { "const": "registry.zeptly.dev/v1alpha1" },
-    "kind": { "const": "LifecycleOverlay" },
+    "apiVersion": {
+      "const": "registry.zeptly.dev/v1alpha1"
+    },
+    "kind": {
+      "const": "LifecycleOverlay"
+    },
     "subject": {
-      "type": "object", "additionalProperties": false, "required": ["registry", "id"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registry",
+        "id"
+      ],
       "properties": {
-        "registry": { "const": "execution-agents" },
-        "id": { "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/id" }
+        "registry": {
+          "const": "execution-agents"
+        },
+        "id": {
+          "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/id"
+        }
       }
     },
     "events": {
@@ -20,17 +39,47 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["version", "digest", "state", "at", "actor"],
+        "required": [
+          "version",
+          "digest",
+          "state",
+          "at",
+          "actor"
+        ],
         "properties": {
-          "version": { "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/semver" },
-          "digest": { "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/digest" },
-          "state": { "enum": ["active", "deprecated", "revoked"] },
-          "at": { "type": "string", "format": "date-time" },
-          "actor": { "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/principal" },
-          "reason": { "type": "string", "minLength": 3 },
-          "supersededBy": { "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/reference" }
+          "version": {
+            "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/semver"
+          },
+          "digest": {
+            "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/digest",
+            "description": "artifactDigest of the target version"
+          },
+          "state": {
+            "enum": [
+              "active",
+              "deprecated",
+              "revoked"
+            ]
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actor": {
+            "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/principal"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3
+          },
+          "supersededBy": {
+            "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/reference"
+          }
         }
       }
+    },
+    "digestAlgorithm": {
+      "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/digestAlgorithm"
     }
   }
 }

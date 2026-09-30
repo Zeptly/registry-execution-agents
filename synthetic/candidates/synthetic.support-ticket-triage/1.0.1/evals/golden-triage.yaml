@@ -1,14 +1,14 @@
 apiVersion: registry.zeptly.dev/v1alpha1
 kind: EvaluationSuite
 id: golden-triage
+version: 1.0.0
 description: Golden cases covering the main categories and the not-a-ticket edge case.
 cases:
 - id: billing-double-charge
   input:
     ticket_id: T-1001
     subject: Charged twice this month
-    body: I see two identical charges on my card for the March invoice. Please refund
-      one.
+    body: I see two identical charges on my card for the March invoice. Please refund one.
     customer_tier: standard
   assertions:
   - type: output_schema_valid

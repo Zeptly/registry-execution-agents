@@ -3,12 +3,16 @@
   "kind": "RegistryIndex",
   "registry": "execution-agents",
   "domain": "synthetic",
+  "digestAlgorithm": "zeptly-jcs-v1",
   "entries": [
     {
       "kind": "ExecutionAgent",
+      "registry": "execution-agents",
       "id": "synthetic.contract-clause-extractor",
       "version": "0.1.0",
-      "digest": "sha256:466cf6a507ffdc8f351a9f3acabfc7a77cc1614f285cb72ab3ec7870242aef77",
+      "artifactDigest": "sha256:7ace6196eb8d465e1f5f723893939008a4986e69daa0d3c3acdaa60c3f55dc1c",
+      "sealDigest": "sha256:7bc9c1d1fc8bdbab10368c6ee6b647eb6d50f262f2e66a9e304b98eff974177f",
+      "digestAlgorithm": "zeptly-jcs-v1",
       "maturity": "candidate",
       "lifecycle": "active",
       "origin": {
@@ -18,9 +22,12 @@
     },
     {
       "kind": "ExecutionAgent",
+      "registry": "execution-agents",
       "id": "synthetic.support-ticket-triage",
       "version": "1.0.0",
-      "digest": "sha256:582455943b8b941e80d2475d115068f512166c60ee0feaa51aa906a82cc22844",
+      "artifactDigest": "sha256:d6063b439dd8ef8eec69722c4f51b00acdd1393a31f0bd8bf36310623eeacfe5",
+      "sealDigest": "sha256:27b081acfed23d785e5eb64a50d5501254bb14c54bc57928943ebc1e9911ee41",
+      "digestAlgorithm": "zeptly-jcs-v1",
       "maturity": "canonical",
       "lifecycle": "active",
       "origin": {
@@ -30,9 +37,12 @@
     },
     {
       "kind": "ExecutionAgent",
+      "registry": "execution-agents",
       "id": "synthetic.support-ticket-triage",
       "version": "1.0.1",
-      "digest": "sha256:8a5894194b0337d933c9f33dbb8b6e50ded990714ed4d0232a7f263952e83d11",
+      "artifactDigest": "sha256:1651a25586b0fdb3c8e3fff7d2dba9f9c8248dea3b83ba0ad9c019d90d81ed9b",
+      "sealDigest": "sha256:34cb1f19c86843720fb2b5c50b46e0eed9a63c308d0fa0c1c81a7211e5a27b41",
+      "digestAlgorithm": "zeptly-jcs-v1",
       "maturity": "candidate",
       "lifecycle": "active",
       "origin": {
@@ -43,9 +53,12 @@
     },
     {
       "kind": "ExecutionAgent",
+      "registry": "execution-agents",
       "id": "synthetic.weekly-metrics-digest",
       "version": "1.0.0",
-      "digest": "sha256:547cc41bf8b067d4000da2182099c65a6bf3fc66f7e144fc7e57297e1eb82741",
+      "artifactDigest": "sha256:759bd5894fc4416d9bfd2b4947590fd095237a26f5d0f128ed02e80bdcb5ced7",
+      "sealDigest": "sha256:b26a3a1b64a233027c936ec3a143103f55cd0ba449e4bdd191e7b599527a7264",
+      "digestAlgorithm": "zeptly-jcs-v1",
       "maturity": "canonical",
       "lifecycle": "active",
       "origin": {

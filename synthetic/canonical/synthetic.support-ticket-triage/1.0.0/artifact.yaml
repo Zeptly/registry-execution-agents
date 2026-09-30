@@ -151,16 +151,19 @@ references:
     id: ticket-classification
     version: 1.2.0
     digest: sha256:1c051591a257f64be506f9d07a984b2bd0c9a184ed5dd4aa9bf9e3d7e23ca9b6
+    digestAlgorithm: zeptly-jcs-v1
   - registry: skills
     id: concise-summarization
     version: 2.0.1
     digest: sha256:1b5f61d254800a7a6d3e767b47c0b2dbd8fbf8a231082e69fcb42ee02d6e0b93
+    digestAlgorithm: zeptly-jcs-v1
 provenance:
   createdAt: 2026-09-29 00:00:00+00:00
   authors:
     - github:zeptly-bootstrap
   sourceRefs: []
   transformations: []
+  synthetic: true
 security:
   classification: internal
   capabilities:
@@ -170,25 +173,25 @@ security:
   approvals:
     - type: promotion
       approver: team:registry-maintainers-placeholder
-      approvedAt: 2026-09-29T19:47:27.825Z
-      subjectDigest: sha256:582455943b8b941e80d2475d115068f512166c60ee0feaa51aa906a82cc22844
+      approvedAt: 2026-09-30T22:56:17.704Z
+      subjectDigest: sha256:d6063b439dd8ef8eec69722c4f51b00acdd1393a31f0bd8bf36310623eeacfe5
+      sealDigest: sha256:27b081acfed23d785e5eb64a50d5501254bb14c54bc57928943ebc1e9911ee41
       ref: evidence://synthetic/approval/support-ticket-triage/1.0.0
 attestations:
   - type: evaluation
-    ref: evidence://synthetic/evaluation/support-ticket-triage/1.0.0/golden-triage
-    subjectDigest: sha256:582455943b8b941e80d2475d115068f512166c60ee0feaa51aa906a82cc22844
-    issuedAt: 2026-09-29T19:47:27.491Z
-    suite: golden-triage
+    ref: evidence://synthetic/evaluation/support-ticket-triage/1.0.0/golden-triage/result
+    subjectDigest: sha256:d6063b439dd8ef8eec69722c4f51b00acdd1393a31f0bd8bf36310623eeacfe5
+    sealDigest: sha256:27b081acfed23d785e5eb64a50d5501254bb14c54bc57928943ebc1e9911ee41
+    issuedAt: 2026-09-30T22:56:17.427Z
+    suite:
+      id: golden-triage
+      version: 1.0.0
+      digest: sha256:8fe24d8fb18bb599e580b8499f07624c2ac2bbe6d4c1b239a90101aa66112438
+    result: pass
     attestor: system:synthetic-eval-harness
   - type: security-review
     ref: evidence://synthetic/security-review/support-ticket-triage/1.0.0
-    subjectDigest: sha256:582455943b8b941e80d2475d115068f512166c60ee0feaa51aa906a82cc22844
-    issuedAt: 2026-09-29T19:47:27.667Z
+    subjectDigest: sha256:d6063b439dd8ef8eec69722c4f51b00acdd1393a31f0bd8bf36310623eeacfe5
+    sealDigest: sha256:27b081acfed23d785e5eb64a50d5501254bb14c54bc57928943ebc1e9911ee41
+    issuedAt: 2026-09-30T22:56:17.566Z
     attestor: team:security-placeholder
-  - type: evaluation
-    ref: evidence://synthetic/evaluation/support-ticket-triage/1.0.0/golden-triage/result
-    subjectDigest: sha256:582455943b8b941e80d2475d115068f512166c60ee0feaa51aa906a82cc22844
-    issuedAt: 2026-09-30T22:20:05.109Z
-    suite: golden-triage
-    result: pass
-    attestor: system:synthetic-eval-harness

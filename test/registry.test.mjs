@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { cpSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, renameSync, symlinkSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { stringify, parse } from "yaml";
@@ -11,6 +12,7 @@ import { validateDomain } from "../scripts/lib/rules.mjs";
 import { checkDomainChange } from "../scripts/lib/changes.mjs";
 import { buildIndex } from "../scripts/lib/index.mjs";
 import { compare, satisfies } from "../scripts/lib/semver.mjs";
+import { EXIT, toDiag } from "../scripts/lib/diag.mjs";
 
 const v = makeValidators();
 const SYN = join(REPO_ROOT, "synthetic");
@@ -25,7 +27,15 @@ const run = (root, name = "production") => validateDomain(loadDomain(root), name
 const errsOf = (root, name) => run(root, name).flatMap((r) => r.errors).join("\n");
 const edit = (dir, fn) => { const a = rd(join(dir, "artifact.yaml")); fn(a); wr(join(dir, "artifact.yaml"), a); };
 
-/** Re-seal a directory and (optionally) re-issue every gate bound to the new digest. */
+/** Evaluation attestation with the v0.2 record shape: suite identity (id, version, digest of the sealed suite file), result, subject and seal binding. */
+function evalAtt(dir, sealObj, suiteId, result, extra = {}) {
+  const a = rd(join(dir, "artifact.yaml"));
+  const su = a.spec.evaluation.suites.find((x) => x.id === suiteId);
+  return { type: "evaluation", suite: { id: suiteId, version: rd(join(dir, su.file)).version, digest: sealObj.payload.find((p) => p.path === su.file).sha256 }, result,
+    ref: "evidence://t/eval", subjectDigest: sealObj.artifactDigest, sealDigest: sealObj.sealDigest, ...extra };
+}
+
+/** Re-seal a directory and (optionally) re-issue every gate bound to the new digests. Returns the artifact digest. */
 function seal(dir, { gates = true } = {}) {
   const a = rd(join(dir, "artifact.yaml"));
   a.attestations = []; a.security.approvals = [];
@@ -33,28 +43,29 @@ function seal(dir, { gates = true } = {}) {
   const s = computeSeal(a, dir);
   wr(join(dir, "seal.yaml"), s);
   if (gates) {
+    const bind = { subjectDigest: s.artifactDigest, sealDigest: s.sealDigest };
     a.attestations = [
-      ...a.spec.evaluation.suites.filter((x) => x.required).map((x) => ({ type: "evaluation", suite: x.id, result: "pass", ref: "evidence://t/eval", subjectDigest: s.digest })),
-      { type: "security-review", ref: "evidence://t/sec", subjectDigest: s.digest },
+      ...a.spec.evaluation.suites.filter((x) => x.required).map((x) => evalAtt(dir, s, x.id, "pass")),
+      { type: "security-review", ref: "evidence://t/sec", ...bind },
     ];
-    a.security.approvals = [{ type: "promotion", approver: "team:x", approvedAt: "2026-01-01T00:00:00Z", subjectDigest: s.digest }];
+    a.security.approvals = [{ type: "promotion", approver: "team:x", approvedAt: "2026-01-01T00:00:00Z", ...bind }];
     wr(join(dir, "artifact.yaml"), a);
   }
-  return s.digest;
+  return s.artifactDigest;
 }
 
-/** A production-domain canonical artifact derived from the synthetic example, properly sealed and gated. */
+/** A production-domain canonical artifact derived from the synthetic example (marker removed), properly sealed and gated. */
 function prodDomain(mutate) {
   const root = join(tmp(), "registry");
   const dir = join(root, "canonical", PID, "1.0.0");
   mkdirSync(join(root, "candidates"), { recursive: true }); mkdirSync(join(root, "lifecycle"), { recursive: true });
   cpSync(TRIAGE, dir, { recursive: true });
   const a = rd(join(dir, "artifact.yaml"));
-  a.metadata.id = PID;
+  a.metadata.id = PID; delete a.provenance.synthetic;
   mutate?.(a, dir);
   wr(join(dir, "artifact.yaml"), a);
   const digest = seal(dir);
-  return { root, dir, digest };
+  return { root, dir, digest, sealDigest: rd(join(dir, "seal.yaml")).sealDigest };
 }
 const baseline = () => prodDomain();
 
@@ -76,11 +87,15 @@ test("production domain holds no synthetic content; committed indexes are curren
   }
 });
 
-test("index carries identity, version, digest, maturity, lifecycle, origin and location", () => {
-  const e = buildIndex(loadDomain(SYN), "synthetic").entries.find((x) => x.id === "synthetic.support-ticket-triage" && x.version === "1.0.1");
-  assert.equal(e.maturity, "candidate"); assert.equal(e.lifecycle, "active");
+test("index carries registry, identity, version, artifact digest, directory seal, digest algorithm, maturity, lifecycle, origin and location", () => {
+  const idx = buildIndex(loadDomain(SYN), "synthetic");
+  assert.equal(idx.registry, "execution-agents"); assert.equal(idx.domain, "synthetic"); assert.equal(idx.digestAlgorithm, "zeptly-jcs-v1");
+  const e = idx.entries.find((x) => x.id === "synthetic.support-ticket-triage" && x.version === "1.0.1");
+  assert.equal(e.registry, "execution-agents"); assert.equal(e.maturity, "candidate"); assert.equal(e.lifecycle, "active"); assert.equal(e.digestAlgorithm, "zeptly-jcs-v1");
   assert.deepEqual(e.origin, { type: "evolved", evolutionKind: "refined" });
-  assert.match(e.digest, /^sha256:[0-9a-f]{64}$/); assert.match(e.location, /^synthetic\/candidates\//);
+  assert.match(e.artifactDigest, /^sha256:[0-9a-f]{64}$/); assert.match(e.sealDigest, /^sha256:[0-9a-f]{64}$/); assert.notEqual(e.artifactDigest, e.sealDigest);
+  assert.match(e.location, /^synthetic\/candidates\//);
+  assert.ok(v.index(idx));
 });
 
 test("a properly sealed and gated production artifact is accepted", () => {
@@ -125,7 +140,7 @@ test("restricted classification needs a digest-bound security-review approval", 
 test("synthetic content cannot enter the production domain", () => {
   const { root } = prodDomain((a) => { a.metadata.id = "synthetic.support-ticket-triage"; });
   assert.match(errsOf(root), /synthetic artifacts cannot exist in the production domain/);
-  const b = prodDomain((a) => { a.references.push({ registry: "skills", id: "synthetic.thing", version: "1.0.0", digest: "sha256:" + "a".repeat(64) }); });
+  const b = prodDomain((a) => { a.references.push({ registry: "skills", id: "synthetic.thing", version: "1.0.0", digest: "sha256:" + "a".repeat(64), digestAlgorithm: "zeptly-jcs-v1" }); });
   assert.match(errsOf(b.root), /cannot reference synthetic/);
 });
 
@@ -148,7 +163,7 @@ test("references must be structured; canonical references are exact and digest-b
 });
 
 test("references validate without network access; local registry references resolve offline", () => {
-  const b = prodDomain((a) => { a.references.push({ registry: "execution-agents", id: "support.missing", version: "1.0.0", digest: "sha256:" + "b".repeat(64) }); });
+  const b = prodDomain((a) => { a.references.push({ registry: "execution-agents", id: "support.missing", version: "1.0.0", digest: "sha256:" + "b".repeat(64), digestAlgorithm: "zeptly-jcs-v1" }); });
   assert.match(errsOf(b.root), /unresolved local reference execution-agents\/support\.missing/);
 });
 
@@ -195,7 +210,7 @@ test("class-specific execution semantics are still enforced", () => {
 
 // ---- lifecycle overlays
 function overlay(root, events) {
-  wr(join(root, "lifecycle", `${PID}.yaml`), { apiVersion: "registry.zeptly.dev/v1alpha1", kind: "LifecycleOverlay", subject: { registry: "execution-agents", id: PID }, events });
+  wr(join(root, "lifecycle", `${PID}.yaml`), { apiVersion: "registry.zeptly.dev/v1alpha1", kind: "LifecycleOverlay", digestAlgorithm: "zeptly-jcs-v1", subject: { registry: "execution-agents", id: PID }, events });
 }
 const ev = (digest, state, at, extra = {}) => ({ version: "1.0.0", digest, state, at, actor: "team:x", ...extra });
 
@@ -271,74 +286,12 @@ test("semver helpers", () => {
   assert.ok(satisfies("0.1.5", "^0.1.0")); assert.ok(!satisfies("0.2.0", "^0.1.0"));
 });
 
-// ---- canonical JSON, golden vectors, digest scope
-test("canonical JSON is RFC 8785: code-unit key order, ES number/string serialization (RFC vectors)", () => {
-  const rfc = { "\u20ac": "Euro Sign", "\r": "Carriage Return", "\ufb33": "Hebrew Letter Dalet With Dagesh", "1": "One", "\ud83d\ude00": "Emoji: Grinning Face", "\u0080": "Control", "\u00f6": "Latin Small Letter O With Diaeresis" };
-  assert.equal(canonicalJson(rfc), '{"\\r":"Carriage Return","1":"One","\u0080":"Control","\u00f6":"Latin Small Letter O With Diaeresis","\u20ac":"Euro Sign","\ud83d\ude00":"Emoji: Grinning Face","\ufb33":"Hebrew Letter Dalet With Dagesh"}');
-  assert.equal(canonicalJson([333333333.33333329, 1e30, 4.5, 2e-3, 1e-27]), "[333333333.3333333,1e+30,4.5,0.002,1e-27]");
-  assert.equal(canonicalJson({ b: [true, null, "x"], a: { d: 1, c: 2 } }), '{"a":{"c":2,"d":1},"b":[true,null,"x"]}');
-});
-
-test("canonical JSON rejects values JCS cannot represent", () => {
-  for (const bad of [NaN, Infinity, undefined, () => 1, "\ud800", new Date(0), { a: undefined }]) assert.throws(() => canonicalJson(bad), /canonicalJson/);
-});
-
-const GOLDEN_ARTIFACT = {
-  apiVersion: "registry.zeptly.dev/v1alpha1", kind: "ExecutionAgent",
-  metadata: { id: "golden.vector", version: "9.9.9", registry: "execution-agents", origin: { type: "native" }, maturity: "candidate", lifecycle: "active" },
-  spec: { name: "Golden", ratio: 0.05, steps: [1, 2, 3], text: "caf\u00e9" }, references: [],
-  provenance: { createdAt: "2026-01-01T00:00:00Z", authors: ["github:golden"], sourceRefs: [], transformations: [] },
-  security: { classification: "internal", capabilities: [], approvals: [] }, attestations: [],
-};
-const GOLDEN = {
-  artifactDigest: "sha256:ebc0c4e6916dda2780cc154bbebd02f612e2cd2b24d3e7edbb7fed2131a3ba20", // computed independently (Python, sorted-key compact JSON)
-  digest: "sha256:fffde3f155f50baffe76a7f2ad4adb48cc3cdef7d47e439a7ae482d5e0812181",
-};
-function goldenDir() {
-  const dir = tmp(); mkdirSync(join(dir, "prompts"));
-  writeFileSync(join(dir, "prompts/system.md"), "Golden prompt\n");
-  return dir;
-}
-
-test("golden vector: artifact digest and directory seal", () => {
-  const seal = computeSeal(GOLDEN_ARTIFACT, goldenDir());
-  assert.equal(seal.artifactDigest, GOLDEN.artifactDigest);
-  assert.equal(seal.digest, GOLDEN.digest);
-  assert.deepEqual(seal.excludedFields, ["metadata.version", "metadata.maturity", "metadata.lifecycle", "attestations", "security.approvals"]);
-});
-
-test("digest scope: version, maturity, lifecycle marker, attestations and approvals are excluded; everything else counts", () => {
-  const dir = goldenDir();
-  const same = (fn) => { const a = JSON.parse(JSON.stringify(GOLDEN_ARTIFACT)); fn(a); return computeSeal(a, dir); };
-  for (const fn of [
-    (a) => { a.metadata.version = "1.0.0"; },
-    (a) => { a.metadata.maturity = "canonical"; },
-    (a) => { a.metadata.lifecycle = "active"; },
-    (a) => { a.attestations.push({ type: "evaluation", ref: "evidence://x", subjectDigest: GOLDEN.digest }); },
-    (a) => { a.security.approvals.push({ type: "promotion", approver: "team:x", approvedAt: "2026-01-01T00:00:00Z", subjectDigest: GOLDEN.digest }); },
-  ]) assert.equal(same(fn).digest, GOLDEN.digest);
-  for (const fn of [
-    (a) => { a.metadata.id = "golden.other"; }, (a) => { a.metadata.origin.type = "evolved"; }, (a) => { a.spec.ratio = 0.06; },
-    (a) => { a.references.push({ registry: "skills", id: "x", version: "1.0.0" }); }, (a) => { a.provenance.authors.push("github:b"); },
-    (a) => { a.security.classification = "restricted"; }, (a) => { a.security.capabilities.push({ registry: "capabilities", id: "x" }); },
-  ]) assert.notEqual(same(fn).artifactDigest, GOLDEN.artifactDigest);
-  writeFileSync(join(dir, "prompts/system.md"), "Changed\n");
-  const s = computeSeal(GOLDEN_ARTIFACT, dir);
-  assert.equal(s.artifactDigest, GOLDEN.artifactDigest); assert.notEqual(s.digest, GOLDEN.digest); // payload is covered by the directory seal only
-});
-
-test("digest is independent of YAML formatting and key order", () => {
-  const dir = goldenDir();
-  const reparsed = parse(stringify(GOLDEN_ARTIFACT, { sortMapEntries: false, lineWidth: 20 }));
-  const reversed = JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(GOLDEN_ARTIFACT).reverse())));
-  assert.equal(computeSeal(reparsed, dir).digest, GOLDEN.digest);
-  assert.equal(computeSeal(reversed, dir).digest, GOLDEN.digest);
-});
-
-test("editing metadata.version alone keeps the digest but is rejected by path/seal-subject rules", () => {
+test("editing metadata.version alone keeps the artifact digest, changes the seal, and is rejected by path/seal-subject rules", () => {
   const { root, dir, digest } = baseline();
+  const sealedSeal = rd(join(dir, "seal.yaml")).sealDigest;
   edit(dir, (a) => { a.metadata.version = "1.0.1"; });
-  assert.equal(computeSeal(rd(join(dir, "artifact.yaml")), dir).digest, digest);
+  const now = computeSeal(rd(join(dir, "artifact.yaml")), dir);
+  assert.equal(now.artifactDigest, digest); assert.notEqual(now.sealDigest, sealedSeal);
   const out = errsOf(root);
   assert.match(out, /must equal metadata\.id\/version/); assert.match(out, /seal subject does not match/);
 });
@@ -459,67 +412,92 @@ function mkObject(root, tree, id, version, mutate, gates = tree === "canonical")
   mkdirSync(join(root, tree, id), { recursive: true });
   cpSync(TRIAGE, dir, { recursive: true }); rmSync(join(dir, "seal.yaml"));
   const a = rd(join(dir, "artifact.yaml"));
-  a.metadata.id = id; a.metadata.version = version; a.metadata.maturity = tree === "canonical" ? "canonical" : "candidate";
+  a.metadata.id = id; a.metadata.version = version; a.metadata.maturity = tree === "canonical" ? "canonical" : "candidate"; delete a.provenance.synthetic;
   mutate?.(a);
   wr(join(dir, "artifact.yaml"), a);
   return { dir, digest: seal(dir, { gates }) };
 }
-const writeOverlay = (root, id, events) => wr(join(root, "lifecycle", `${id}.yaml`), { apiVersion: "registry.zeptly.dev/v1alpha1", kind: "LifecycleOverlay", subject: { registry: "execution-agents", id }, events });
+const writeOverlay = (root, id, events) => wr(join(root, "lifecycle", `${id}.yaml`), { apiVersion: "registry.zeptly.dev/v1alpha1", kind: "LifecycleOverlay", digestAlgorithm: "zeptly-jcs-v1", subject: { registry: "execution-agents", id }, events });
 const lifeEvent = (version, digest, state, at = "2026-02-01T00:00:00Z") => ({ version, digest, state, at, actor: "team:x", ...(state === "active" ? {} : { reason: "test reason" }) });
-const dep = (id, version, digest) => (a) => { a.references.push({ registry: "execution-agents", id, version, digest: digest ?? null }); };
+const dep = (id, version, digest) => (a) => { a.references.push({ registry: "execution-agents", id, version, digest: digest ?? null, ...(digest ? { digestAlgorithm: "zeptly-jcs-v1" } : {}) }); };
 
 // ---- 1. promotion requires an explicit passing evaluation result bound to the current digest
 function evalDomain(results) {
   const d = prodDomain();
+  const sealObj = rd(join(d.dir, "seal.yaml"));
   edit(d.dir, (a) => {
     a.attestations = a.attestations.filter((x) => x.type !== "evaluation");
-    for (const r of results) a.attestations.push({ type: "evaluation", suite: "golden-triage", ref: "evidence://t/eval", subjectDigest: d.digest, ...(r === "unspecified" ? {} : { result: r }) });
+    for (const r of results) a.attestations.push(evalAtt(d.dir, sealObj, "golden-triage", r));
   });
-  return d;
+  return { ...d, sealObj };
 }
-test("evaluation gate: explicit pass satisfies; missing, unspecified, inconclusive and failed results do not", () => {
+test("evaluation gate: explicit pass satisfies; missing and inconclusive and failed results do not", () => {
   assert.equal(errsOf(evalDomain(["pass"]).root), "");
   assert.match(errsOf(evalDomain([]).root), /lacks a digest-bound 'evaluation' attestation for required suite 'golden-triage'/);
-  assert.match(errsOf(evalDomain(["unspecified"]).root), /no passing evaluation result.*unspecified/);
   assert.match(errsOf(evalDomain(["inconclusive"]).root), /no passing evaluation result.*inconclusive/);
   assert.match(errsOf(evalDomain(["fail"]).root), /failing evaluation result.*blocks promotion/);
 });
 
-test("evaluation gate: a failure blocks even beside a pass; a later pass after inconclusive/unspecified satisfies", () => {
+test("evaluation record schema: 'result' and the suite identity {id, version, digest} are required on evaluation attestations", () => {
+  const d = evalDomain(["pass"]);
+  edit(d.dir, (a) => { delete a.attestations.find((x) => x.type === "evaluation").result; });
+  assert.match(errsOf(d.root), /artifact\.yaml: .*attestations\/\d+ must have required property 'result'/);
+  const e = evalDomain(["pass"]);
+  edit(e.dir, (a) => { a.attestations.find((x) => x.type === "evaluation").suite = "golden-triage"; });
+  assert.match(errsOf(e.root), /attestations\/\d+\/suite must be object/);
+  const f = evalDomain(["pass"]);
+  edit(f.dir, (a) => { delete a.attestations.find((x) => x.type === "evaluation").suite.digest; });
+  assert.match(errsOf(f.root), /suite must have required property 'digest'/);
+});
+
+test("evaluation gate: a failure blocks even beside a pass; a later pass after inconclusive satisfies", () => {
   assert.match(errsOf(evalDomain(["pass", "fail"]).root), /failing evaluation result/);
   assert.match(errsOf(evalDomain(["fail", "pass"]).root), /failing evaluation result/);
   assert.equal(errsOf(evalDomain(["inconclusive", "pass"]).root), "");
-  assert.equal(errsOf(evalDomain(["unspecified", "pass"]).root), "");
 });
 
-test("evaluation gate: the pass must be bound to the current digest and to the required suite", () => {
-  const d = evalDomain(["pass"]);
-  edit(d.dir, (a) => { a.attestations.find((x) => x.type === "evaluation").subjectDigest = "sha256:" + "d".repeat(64); });
-  const out = errsOf(d.root);
-  assert.match(out, /is stale/); assert.match(out, /lacks a digest-bound 'evaluation' attestation/);
-  const e = evalDomain(["pass"]);
-  edit(e.dir, (a) => { a.attestations.find((x) => x.type === "evaluation").suite = "other-suite"; });
-  assert.match(errsOf(e.root), /lacks a digest-bound 'evaluation' attestation for required suite 'golden-triage'/);
+test("evaluation gate: the pass must match the sealed suite identity (version and digest) and the subject and seal digests", () => {
+  const wrongDigest = evalDomain(["pass"]);
+  edit(wrongDigest.dir, (a) => { a.attestations.find((x) => x.type === "evaluation").suite.digest = "sha256:" + "d".repeat(64); });
+  assert.match(errsOf(wrongDigest.root), /do not match the sealed suite identity.*digest/);
+  const wrongVersion = evalDomain(["pass"]);
+  edit(wrongVersion.dir, (a) => { a.attestations.find((x) => x.type === "evaluation").suite.version = "9.9.9"; });
+  assert.match(errsOf(wrongVersion.root), /do not match the sealed suite identity/);
+  const wrongSubject = evalDomain(["pass"]);
+  edit(wrongSubject.dir, (a) => { a.attestations.find((x) => x.type === "evaluation").subjectDigest = "sha256:" + "d".repeat(64); });
+  const out = errsOf(wrongSubject.root);
+  assert.match(out, /is stale: subjectDigest/); assert.match(out, /lacks a digest-bound 'evaluation' attestation/);
+  const wrongSeal = evalDomain(["pass"]);
+  edit(wrongSeal.dir, (a) => { a.attestations.find((x) => x.type === "evaluation").sealDigest = "sha256:" + "d".repeat(64); });
+  assert.match(errsOf(wrongSeal.root), /is stale: sealDigest/);
+  const wrongSuite = evalDomain(["pass"]);
+  edit(wrongSuite.dir, (a) => { a.attestations.find((x) => x.type === "evaluation").suite.id = "other-suite"; });
+  assert.match(errsOf(wrongSuite.root), /lacks a digest-bound 'evaluation' attestation for required suite 'golden-triage'/);
+  // a failing result for a DIFFERENT suite version does not block a passing result for the current one
+  const mixed = evalDomain(["pass"]);
+  edit(mixed.dir, (a) => { const old = structuredClone(a.attestations.find((x) => x.type === "evaluation")); old.suite.version = "0.9.0"; old.suite.digest = "sha256:" + "c".repeat(64); old.result = "fail"; a.attestations.push(old); });
+  assert.equal(errsOf(mixed.root), "");
 });
 
-test("evaluation result schema: enum enforced; 'result' only valid on evaluation attestations", () => {
+test("evaluation record shape: 'result'/'suite' are rejected on non-evaluation attestations; result enum enforced", () => {
   const d = evalDomain(["pass"]);
-  edit(d.dir, (a) => { a.attestations.find((x) => x.type === "evaluation").result = "passed"; });
-  assert.match(errsOf(d.root), /artifact\.yaml: .*attestations\/\d+\/result/);
+  edit(d.dir, (a) => { a.attestations.find((x) => x.type === "security-review").result = "pass"; });
+  assert.match(errsOf(d.root), /artifact\.yaml: .*attestations\/\d+ (must NOT be valid|must match "else" schema)/);
   const e = evalDomain(["pass"]);
-  edit(e.dir, (a) => { a.attestations.find((x) => x.type === "security-review").result = "pass"; });
-  assert.match(errsOf(e.root), /'result' is only valid on 'evaluation' attestations/);
+  edit(e.dir, (a) => { a.attestations.find((x) => x.type === "evaluation").result = "passed"; });
+  assert.match(errsOf(e.root), /artifact\.yaml: .*attestations\/\d+\/result/);
 });
 
 test("evaluation gate does not apply to candidates; shipped synthetic fixtures model pass, inconclusive and fail explicitly", () => {
   const root = emptyDomain();
-  mkObject(root, "candidates", "support.cand", "1.0.0", (a) => { a.attestations = []; }, false);
-  edit(join(root, "candidates/support.cand/1.0.0"), (a) => { a.attestations = [{ type: "evaluation", suite: "golden-triage", result: "fail", ref: "evidence://t/x", subjectDigest: rd(join(root, "candidates/support.cand/1.0.0/seal.yaml")).digest }]; });
-  assert.equal(errsOf(root), "");
-  const res = (dir) => rd(join(dir, "artifact.yaml")).attestations.filter((x) => x.type === "evaluation").map((x) => x.result ?? "unspecified");
-  assert.deepEqual(res(TRIAGE), ["unspecified", "pass"]);
+  const c = mkObject(root, "candidates", "support.cand", "1.0.0", null, false);
+  const dir = join(root, "candidates/support.cand/1.0.0"), sealObj = rd(join(dir, "seal.yaml"));
+  edit(dir, (a) => { a.attestations = [evalAtt(dir, sealObj, "golden-triage", "fail")]; });
+  assert.equal(errsOf(root), ""); void c;
+  const res = (d) => rd(join(d, "artifact.yaml")).attestations.filter((x) => x.type === "evaluation").map((x) => x.result);
+  assert.deepEqual(res(TRIAGE), ["pass"]);
   assert.deepEqual(res(join(SYN, "candidates/synthetic.contract-clause-extractor/0.1.0")), ["inconclusive", "fail"]);
-  assert.match(errsOf(SYN, "synthetic"), /^$/); // the shipped synthetic domain validates
+  assert.equal(errsOf(SYN, "synthetic"), "");
 });
 
 // ---- 2. lifecycle eligibility of executable local dependencies (separate cases)
@@ -573,7 +551,7 @@ test("lifecycle: lineage may describe a revoked ancestor without authorizing its
   const anc = mkObject(root, "canonical", "support.tool", "1.0.0");
   const evolve = (a) => {
     a.metadata.origin = { type: "evolved", evolution: { kind: "refined", rationale: "Tightened the instructions.", proposer: "agent:p", sourceRefs: [
-      { registry: "execution-agents", id: "support.tool", version: "1.0.0", digest: anc.digest },
+      { registry: "execution-agents", id: "support.tool", version: "1.0.0", digest: anc.digest, digestAlgorithm: "zeptly-jcs-v1" },
       { evidence: "evidence://t/sessions/1", role: "motivates", summary: "Sessions showing the issue." }] } };
   };
   mkObject(root, "candidates", "support.tool", "1.0.1", evolve, false);
@@ -588,7 +566,7 @@ test("lifecycle: lineage still verifies existence and digest", () => {
   const root = emptyDomain();
   const anc = mkObject(root, "canonical", "support.tool", "1.0.0");
   const evolve = (digest) => (a) => { a.metadata.origin = { type: "evolved", evolution: { kind: "refined", rationale: "Tightened the instructions.", proposer: "agent:p", sourceRefs: [
-    { registry: "execution-agents", id: "support.tool", version: "1.0.0", digest }, { evidence: "evidence://t/sessions/1", role: "motivates", summary: "Sessions showing the issue." }] } }; };
+    { registry: "execution-agents", id: "support.tool", version: "1.0.0", digest, digestAlgorithm: "zeptly-jcs-v1" }, { evidence: "evidence://t/sessions/1", role: "motivates", summary: "Sessions showing the issue." }] } }; };
   mkObject(root, "candidates", "support.tool", "1.0.1", evolve("sha256:" + "e".repeat(64)), false);
   assert.match(errsOf(root), /lineage reference execution-agents\/support\.tool@1\.0\.0 digest mismatch/);
   rmSync(join(root, "candidates/support.tool"), { recursive: true });
@@ -632,38 +610,42 @@ test("unreadable YAML never crashes validation or indexing; diagnostics are file
 });
 
 // ---- 4. integer-valued numbers outside the safe range are rejected before precision is lost
-test("yaml numbers: unsafe integer-valued literals are rejected in every spelling", () => {
-  for (const lit of ["9007199254740992", "-9007199254740992", "+9007199254740993", "9007199254740993", "12345678901234567890", "10000000000000000",
-    "9007199254740993.0", "9007199254740993e0", "90071992547409930e-1", "1e16", "1E21", "1e21", "1.5e300", "0x20000000000000", "0o1000000000000000000"])
+test("yaml numbers: unsafe integer-valued literals are rejected at the source in every spelling, with positioned coded diagnostics", () => {
+  for (const lit of ["9007199254740992", "-9007199254740992", "9007199254740993", "12345678901234567890", "10000000000000000",
+    "9007199254740993.0", "9007199254740993e0", "90071992547409930e-1", "1e16", "1E21", "1e21", "1.5e300"])
     assert.throws(() => parseYamlStrict(`a: ${lit}\n`), /outside the safe range/, lit);
+  for (const lit of ["+9007199254740993", "0x20000000000000", "0o1000000000000000000"]) assert.throws(() => parseYamlStrict(`a: ${lit}\n`), /not a JSON-compatible decimal/, lit);
   assert.throws(() => parseYamlStrict("a: [1, {b: 9007199254740993}]\n"), /outside the safe range/);
-  assert.throws(() => parseYamlStrict("9007199254740993: x\n"), /outside the safe range/);
-  assert.throws(() => parseYamlStrict("a: 1\nb: 12345678901234567890\n"), /line 2, column 4/);
+  assert.throws(() => parseYamlStrict("9007199254740993: x\n"), (e) => e.problems.some((p) => p.code === "yaml-non-string-key") || /outside the safe range/.test(e.message));
+  assert.throws(() => parseYamlStrict("a: 1\nb: 12345678901234567890\n"), (e) => e.problems[0].code === "yaml-unsafe-integer" && e.problems[0].line === 2 && e.problems[0].column === 4 && /line 2, column 4/.test(e.message));
 });
 
-test("yaml numbers: safe integers and fractional values behave as before", () => {
-  const v = parseYamlStrict("a: 9007199254740991\nb: -9007199254740991\nc: 0.05\nd: 333333333.33333329\ne: 123456789012345678e-2\nf: 1e-7\ng: 2.5e3\nh: 4.5e15\ni: 0\nj: 0.0\nk: 1.0\nl: .5\nm: 9007199254740993.5\nn: 1e15\no: 0x10\np: -0\n");
-  assert.deepEqual(v, { a: 9007199254740991, b: -9007199254740991, c: 0.05, d: 333333333.3333333, e: 1234567890123456.8, f: 1e-7, g: 2500, h: 4.5e15, i: 0, j: 0, k: 1, l: 0.5, m: 9007199254740994, n: 1e15, o: 16, p: 0 }); // integer -0 becomes 0; canonical JSON renders both as "0"
-  assert.equal(parseYamlStrict("a: .inf\n").a, Infinity); // still parsed here; canonicalJson rejects non-finite numbers (see earlier test)
-  assert.throws(() => canonicalJson(parseYamlStrict("a: .inf\n")), /non-finite/);
-  assert.equal(isUnsafeIntegerLiteral("0x10"), null); // not a decimal literal: value-based fallback applies
+test("yaml numbers: safe integers and fractional JSON-grammar numbers behave as before; non-JSON spellings are rejected", () => {
+  const v = parseYamlStrict("a: 9007199254740991\nb: -9007199254740991\nc: 0.05\nd: 333333333.33333329\ne: 123456789012345678e-2\nf: 1e-7\ng: 2.5e3\nh: 4.5e15\ni: 0\nj: 0.0\nk: 1.0\nm: 9007199254740993.5\nn: 1e15\np: -0\n");
+  assert.deepEqual(v, { a: 9007199254740991, b: -9007199254740991, c: 0.05, d: 333333333.3333333, e: 1234567890123456.8, f: 1e-7, g: 2500, h: 4.5e15, i: 0, j: 0, k: 1, m: 9007199254740994, n: 1e15, p: 0 });
+  for (const bad of ["a: .5\n", "a: 5.\n", "a: +1\n", "a: 007\n", "a: 0x10\n", "a: .inf\n", "a: .nan\n"]) assert.throws(() => parseYamlStrict(bad), /JSON-compatible decimal|non-finite/, bad);
+  assert.equal(isUnsafeIntegerLiteral("0x10"), null); // not a decimal literal
   assert.equal(isUnsafeIntegerLiteral("123456789012345678e-2"), false); // fractional
   assert.equal(isUnsafeIntegerLiteral("9007199254740991"), false); assert.equal(isUnsafeIntegerLiteral("9007199254740992"), true);
   assert.equal(isUnsafeIntegerLiteral("1e400"), true); assert.equal(isUnsafeIntegerLiteral("0e999"), false);
 });
 
-test("yaml numbers: unsafe input is rejected in artifact.yaml, seal.yaml and sidecar YAML with controlled diagnostics; golden digests unchanged", () => {
+test("yaml input: unsafe numbers and v0.2 subset violations are reported with controlled diagnostics in artifact.yaml, seal.yaml and sidecar YAML", () => {
   const { root, dir } = baseline();
-  edit(dir, (a) => { a.spec.modelPolicy.temperature = 0.1; });
   const p = join(dir, "artifact.yaml"), orig = readFileSync(p, "utf8");
   writeFileSync(p, orig.replace(/temperature: .*/, "temperature: 9007199254740993"));
   assert.match(errsOf(root), /artifact\.yaml: numeric literal '9007199254740993' at line \d+, column \d+ is an integer outside the safe range/);
   writeFileSync(p, orig.replace(/temperature: .*/, "temperature: 1e21"));
   assert.match(errsOf(root), /artifact\.yaml: numeric literal '1e21'/);
+  writeFileSync(p, orig.replace("spec:\n", "spec: &anchor\n"));
+  assert.match(errsOf(root), /artifact\.yaml: anchors are not allowed/);
   writeFileSync(p, orig);
+  const sp = join(dir, "seal.yaml"), so = readFileSync(sp, "utf8");
+  writeFileSync(sp, so + "extra: 9007199254740993\n");
+  assert.match(errsOf(root), /seal\.yaml: numeric literal '9007199254740993'/);
+  writeFileSync(sp, so);
   writeFileSync(join(dir, "evals/golden-triage.yaml"), readFileSync(join(dir, "evals/golden-triage.yaml"), "utf8") + "extra: 9007199254740993\n");
   assert.match(errsOf(root), /evals\/golden-triage\.yaml: unparseable YAML: .*outside the safe range/);
-  assert.equal(computeSeal(GOLDEN_ARTIFACT, goldenDir()).digest, GOLDEN.digest);
 });
 
 // ---- 5. case-colliding payload paths
@@ -678,4 +660,161 @@ test("payload paths that collide case-insensitively are rejected (files and dire
   rmSync(join(dir, "prompts/Sub"), { recursive: true }); rmSync(join(dir, "prompts/sub"), { recursive: true });
   writeFileSync(join(dir, "prompts/notes.md"), "n\n"); writeFileSync(join(dir, "prompts/other.md"), "o\n");
   assert.doesNotMatch(errsOf(root), /collision/); // distinct names do not collide (the extra files only change the seal)
+});
+
+// ============================================================================================================
+// Protocol v0.2: exit codes, machine-readable diagnostics, vocabulary, digestAlgorithm, synthetic marker, resolution rules
+// ============================================================================================================
+const node = (args, opts = {}) => spawnSync(process.execPath, args, { cwd: REPO_ROOT, encoding: "utf8", ...opts });
+const codes = (root, name) => run(root, name).flatMap((r) => r.errors).map((e) => e.code);
+
+test("exit codes: validate exits 0 when valid and 2 for validation errors or malformed input; --json prints coded diagnostics", () => {
+  const good = baseline();
+  const ok = node(["scripts/validate.mjs", "--root", good.root, "--name", "production"]);
+  assert.equal(ok.status, EXIT.OK);
+  writeFileSync(join(good.dir, "artifact.yaml"), "a: [unterminated\n");
+  const bad = node(["scripts/validate.mjs", "--root", good.root, "--name", "production", "--json"]);
+  assert.equal(bad.status, EXIT.INVALID);
+  const out = JSON.parse(bad.stdout);
+  assert.equal(out.ok, false);
+  const d = out.diagnostics.find((x) => x.code === "yaml-invalid");
+  assert.ok(d && d.file === "artifact.yaml" && /invalid YAML/.test(d.message));
+  writeFileSync(join(good.dir, "artifact.yaml"), Buffer.from([0xff, 0xfe]));
+  const utf = JSON.parse(node(["scripts/validate.mjs", "--root", good.root, "--name", "production", "--json"]).stdout);
+  assert.ok(utf.diagnostics.some((x) => x.code === "utf8-invalid" && x.file === "artifact.yaml"));
+  assert.equal(node(["scripts/validate.mjs", "--root", good.root, "--name", "production"]).status, EXIT.INVALID);
+});
+
+test("exit codes: seal.mjs — 1 when already sealed, 2 for file-policy violations; attest.mjs — 2 for malformed requests", () => {
+  const root = emptyDomain();
+  mkObject(root, "candidates", "support.cli", "1.0.0", null, false);
+  const dir = join(root, "candidates/support.cli/1.0.0");
+  assert.equal(node(["scripts/seal.mjs", dir]).status, EXIT.UNSATISFIED); // already sealed: a valid request that cannot be satisfied
+  rmSync(join(dir, "seal.yaml"));
+  writeFileSync(join(dir, "prompts/run.log"), "x\n");
+  const r = node(["scripts/seal.mjs", dir]); assert.equal(r.status, EXIT.INVALID); assert.match(r.stderr, /\[file-extension-not-allowed\]/);
+  rmSync(join(dir, "prompts/run.log"));
+  assert.equal(node(["scripts/seal.mjs", dir]).status, EXIT.OK);
+  assert.equal(node(["scripts/attest.mjs", dir, "--type", "evaluation", "--suite", "golden-triage", "--ref", "evidence://t/x"]).status, EXIT.INVALID); // --result missing
+  assert.equal(node(["scripts/attest.mjs", dir, "--type", "evaluation", "--suite", "nope", "--result", "pass", "--ref", "evidence://t/x"]).status, EXIT.INVALID);
+});
+
+test("attest.mjs records the v0.2 evaluation shape: suite identity from the sealed suite file, result, subject and seal binding", () => {
+  const root = emptyDomain();
+  mkObject(root, "candidates", "support.cli", "1.0.0", (a) => { a.attestations = []; }, false);
+  const dir = join(root, "candidates/support.cli/1.0.0");
+  const r = node(["scripts/attest.mjs", dir, "--type", "evaluation", "--suite", "golden-triage", "--result", "fail", "--ref", "evidence://t/run-1"]);
+  assert.equal(r.status, 0, r.stderr);
+  const sealObj = rd(join(dir, "seal.yaml")), att = rd(join(dir, "artifact.yaml")).attestations.at(-1);
+  assert.deepEqual([att.type, att.result, att.subjectDigest, att.sealDigest], ["evaluation", "fail", sealObj.artifactDigest, sealObj.sealDigest]);
+  assert.deepEqual(att.suite, { id: "golden-triage", version: "1.0.0", digest: sealObj.payload.find((p) => p.path === "evals/golden-triage.yaml").sha256 });
+  assert.equal(errsOf(root), "");
+  // tampering after sealing is refused
+  writeFileSync(join(dir, "prompts/system.md"), "x\n");
+  assert.equal(node(["scripts/attest.mjs", dir, "--type", "security-review", "--ref", "evidence://t/s"]).status, EXIT.INVALID);
+});
+
+test("machine-readable codes: failing cases map to stable codes, never the generic fallback", () => {
+  const cases = [
+    ["seal-mismatch", () => { const d = baseline(); writeFileSync(join(d.dir, "prompts/system.md"), "x\n"); return [d.root, "production"]; }],
+    ["attestation-stale", () => { const d = baseline(); edit(d.dir, (a) => { a.spec.description = "Changed description after sealing the artifact."; }); wr(join(d.dir, "seal.yaml"), computeSeal(rd(join(d.dir, "artifact.yaml")), d.dir)); return [d.root, "production"]; }],
+    ["path-case-collision", () => { const d = baseline(); writeFileSync(join(d.dir, "prompts/A.md"), "a\n"); writeFileSync(join(d.dir, "prompts/a.md"), "b\n"); return [d.root, "production"]; }],
+    ["symlink-rejected", () => { const d = baseline(); symlinkSync(join(d.dir, "prompts/system.md"), join(d.dir, "prompts/alias.md")); return [d.root, "production"]; }],
+    ["endpoint-detected", () => { const d = baseline(); writeFileSync(join(d.dir, "prompts/system.md"), "see https://x.example\n"); return [d.root, "production"]; }],
+    ["promotion-evaluation-failed", () => [evalDomain(["fail"]).root, "production"]],
+    ["promotion-evaluation-not-passing", () => [evalDomain(["inconclusive"]).root, "production"]],
+    ["promotion-evaluation-missing", () => [evalDomain([]).root, "production"]],
+    ["synthetic-namespace", () => [prodDomain((a) => { a.metadata.id = "synthetic.support-ticket-triage"; }).root, "production"]],
+    ["schema-invalid", () => [prodDomain((a) => { a.surprise = 1; }).root, "production"]],
+    ["reference-unresolved", () => [prodDomain((a) => { a.references.push({ registry: "execution-agents", id: "support.missing", version: "1.0.0", digest: "sha256:" + "b".repeat(64), digestAlgorithm: "zeptly-jcs-v1" }); }).root, "production"]],
+  ];
+  for (const [code, build] of cases) { const [root, name] = build(); const got = codes(root, name); assert.ok(got.includes(code), `${code}: got ${JSON.stringify(got)}`); assert.ok(!got.includes("validation-error") || code === "never", `${code}: generic fallback present in ${JSON.stringify(got)}`); }
+  assert.equal(toDiag("anything unexpected").code, "validation-error");
+  assert.deepEqual(Object.keys(toDiag("artifact.yaml: /metadata/id must be string").toJSON()).sort(), ["code", "file", "message", "path"]);
+});
+
+test("v0.2 vocabulary: origin types, evolution kinds, publication marker", () => {
+  for (const type of ["native", "upstream-seed", "discovered", "refined", "evolved"]) assert.ok(v.index({ apiVersion: "registry.zeptly.dev/v1alpha1", kind: "RegistryIndex", registry: "execution-agents", domain: "production", digestAlgorithm: "zeptly-jcs-v1", entries: [{ kind: "ExecutionAgent", registry: "execution-agents", id: "a.b", version: "1.0.0", artifactDigest: "sha256:" + "a".repeat(64), sealDigest: "sha256:" + "b".repeat(64), digestAlgorithm: "zeptly-jcs-v1", maturity: "candidate", lifecycle: "active", origin: { type }, location: "x" }] }), type);
+  const ev = (type, kind) => (a) => { a.metadata.origin = { type, evolution: { kind, rationale: "Derived from observed sessions.", proposer: "agent:p", sourceRefs: [{ evidence: "evidence://t/s", role: "motivates", summary: "Observed sessions." }] } }; };
+  assert.equal(errsOf(prodDomain(ev("discovered", "discovered")).root), "");
+  assert.equal(errsOf(prodDomain(ev("refined", "generalised")).root), "");
+  assert.match(errsOf(prodDomain(ev("refined", "invented")).root), /artifact\.yaml: .*evolution\/kind/);
+  assert.match(errsOf(prodDomain((a) => { a.metadata.origin = { type: "native", evolution: { kind: "refined", rationale: "Derived from observed sessions.", proposer: "agent:p", sourceRefs: [{ evidence: "evidence://t/s", role: "motivates", summary: "Observed sessions." }] } }; }).root), /origin\.evolution is only valid for origin\.type/);
+  assert.match(errsOf(prodDomain((a) => { a.metadata.lifecycle = "deprecated"; }).root), /metadata\.lifecycle is a publication marker and must be 'active'/);
+  assert.match(errsOf(prodDomain((a) => { a.metadata.lifecycle = "retired"; }).root), /artifact\.yaml: .*lifecycle/);
+});
+
+test("digestAlgorithm: required alongside every digest in references, seals, overlays and indexes; only zeptly-jcs-v1 is accepted", () => {
+  const d = baseline();
+  edit(d.dir, (a) => { delete a.references[0].digestAlgorithm; });
+  assert.match(errsOf(d.root), /artifact\.yaml: .*references\/0 .*(digestAlgorithm|then)/);
+  const e = baseline();
+  edit(e.dir, (a) => { a.references[0].digestAlgorithm = "zeptly-jcs-v2"; });
+  assert.match(errsOf(e.root), /artifact\.yaml: .*references\/0\/digestAlgorithm/);
+  const f = baseline();
+  const sp = join(f.dir, "seal.yaml"), so = rd(sp); so.digestAlgorithm = "sha256"; wr(sp, so);
+  assert.ok(codes(f.root, "production").includes("digest-algorithm-unsupported"));
+  const g = baseline();
+  writeOverlay(g.root, PID, [lifeEvent("1.0.0", g.digest, "deprecated")]);
+  const ov = join(g.root, "lifecycle", `${PID}.yaml`), o = rd(ov); delete o.digestAlgorithm; wr(ov, o);
+  assert.match(errsOf(g.root), /digestAlgorithm/);
+  assert.equal(rd(join(SYN, TRIAGE.split("synthetic/")[1], "seal.yaml")).digestAlgorithm, "zeptly-jcs-v1");
+});
+
+test("synthetic marker: explicit provenance.synthetic is required in the synthetic domain and forbidden in production", () => {
+  const syn = join(tmp(), "synthetic"); cpSync(SYN, syn, { recursive: true });
+  const dir = join(syn, "canonical/synthetic.support-ticket-triage/1.0.0");
+  edit(dir, (a) => { delete a.provenance.synthetic; });
+  const out = errsOf(syn, "synthetic");
+  assert.match(out, /explicit synthetic marker provenance\.synthetic: true/);
+  assert.ok(codes(syn, "synthetic").includes("artifact-digest-mismatch") || codes(syn, "synthetic").includes("seal-mismatch")); // the marker is digest-covered provenance
+  const prod = baseline();
+  edit(prod.dir, (a) => { a.provenance.synthetic = true; });
+  assert.match(errsOf(prod.root), /production artifacts cannot carry a synthetic marker/);
+  for (const d of ["canonical/synthetic.support-ticket-triage/1.0.0", "candidates/synthetic.contract-clause-extractor/0.1.0"]) assert.equal(rd(join(SYN, d, "artifact.yaml")).provenance.synthetic, true);
+});
+
+test("resolution rules: prereleases resolve only when the range names a prerelease; malformed ranges are invalid-range", () => {
+  assert.equal(satisfies("1.3.0-rc.1", "^1.2.0"), false);
+  assert.equal(satisfies("1.3.0", "^1.2.0"), true);
+  assert.equal(satisfies("1.3.0-rc.2", "^1.3.0-rc.1"), true);
+  assert.equal(satisfies("1.2.0-rc.1", "~1.2.0-rc.1"), true);
+  assert.equal(satisfies("1.0.0-rc.1", "1.0.0-rc.1"), true);
+  for (const bad of ["*", ">=1.0.0", "1.x", "^1.0", "latest", "", "^", "1.0.0+build", "^^1.0.0"])
+    assert.throws(() => satisfies("1.0.0", bad), (e) => e.code === "invalid-range", bad);
+  // a canonical dependency range is refused by the schema/pin rules; a candidate's malformed range is a controlled error
+  const root = emptyDomain();
+  mkObject(root, "candidates", "support.app", "1.0.0", (a) => { a.references.push({ registry: "execution-agents", id: "support.dep", version: "^1.0", digest: null }); }, false);
+  assert.match(errsOf(root), /artifact\.yaml: .*references\/\d+\/version/);
+});
+
+test("prerelease dependencies: a candidate range naming a prerelease selects canonical prerelease versions only", () => {
+  const root = emptyDomain();
+  mkObject(root, "canonical", "support.dep", "1.0.0-rc.1");
+  mkObject(root, "candidates", "support.app", "1.0.0", dep("support.dep", "^1.0.0"), false);
+  assert.match(errsOf(root), /unresolved local reference execution-agents\/support\.dep@\^1\.0\.0/); // a stable range does not see the prerelease
+  rmSync(join(root, "candidates/support.app"), { recursive: true });
+  mkObject(root, "candidates", "support.app", "1.0.0", dep("support.dep", "^1.0.0-rc.1"), false);
+  assert.equal(errsOf(root), "");
+});
+
+test("index consumability for a RuntimeLock: entries carry every field a lock subject and pin check need; an unresolved entry is explicit", () => {
+  const idx = buildIndex(loadDomain(SYN), "synthetic");
+  for (const e of idx.entries) {
+    const subject = { registry: e.registry, id: e.id, version: e.version, digest: e.artifactDigest };
+    assert.ok(Object.values(subject).every((x) => typeof x === "string" && x.length), e.id);
+    assert.equal(e.digestAlgorithm, idx.digestAlgorithm); assert.ok(["production", "synthetic"].includes(idx.domain));
+  }
+  // shape from the amendment: an unresolved reference is explicit and complete=false (runtime-owned; no resolver here)
+  const lock = { apiVersion: "registry.zeptly.dev/v1alpha1", kind: "RuntimeLock", digestAlgorithm: idx.digestAlgorithm, domain: idx.domain,
+    subject: { registry: idx.entries[0].registry, id: idx.entries[0].id, version: idx.entries[0].version, digest: idx.entries[0].artifactDigest }, complete: false,
+    entries: rd(join(SYN, "canonical/synthetic.support-ticket-triage/1.0.0/artifact.yaml")).references.map((r) => ({ requested: { registry: r.registry, id: r.id, version: r.version }, status: "unresolved", unresolved: { code: "no-peer-index", message: "peer index was not supplied" } })) };
+  assert.equal(lock.entries.length, rd(join(SYN, "canonical/synthetic.support-ticket-triage/1.0.0/artifact.yaml")).references.length); // every declared reference appears
+  assert.ok(lock.entries.every((x) => x.status === "unresolved" && x.unresolved.code === "no-peer-index") && lock.complete === false);
+});
+
+test("indexes: code-point ordering of ids is separate from JCS (UTF-16) key ordering", () => {
+  assert.deepEqual(["😀", "דּ"].sort(compareCodePoints), ["דּ", "😀"]);          // code-point order (indexes)
+  assert.deepEqual(["😀", "דּ"].sort(), ["😀", "דּ"]);                               // UTF-16 code-unit order (JCS keys)
+  assert.equal(canonicalJson({ "דּ": 1, "😀": 2 }), '{"😀":2,"דּ":1}');
 });

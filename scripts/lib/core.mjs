@@ -3,6 +3,9 @@ import { readFileSync, readdirSync, existsSync, lstatSync } from "node:fs";
 import { join, dirname, resolve, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readYamlStrict } from "./yaml.mjs";
+import { canonicalJson } from "./jcs.mjs";
+import { Diag, InputError } from "./diag.mjs";
+export { canonicalJson };
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import { scanVersionDir } from "./files.mjs";
@@ -20,13 +23,23 @@ export const SCHEMA_ID = (n) =>
 export const DOMAINS = { production: "registry", synthetic: "synthetic" };
 export const TREES = { canonical: "canonical", candidate: "candidates" };
 
+/** The one digest contract in this registry (Protocol v0.2). Changing any rule below requires a new identifier and new vectors. */
+export const DIGEST_ALGORITHM = "zeptly-jcs-v1";
 /**
- * Artifact digest scope. INCLUDED: apiVersion, kind, metadata.id, metadata.registry, metadata.origin, spec, references,
- * provenance, security.classification, security.capabilities. EXCLUDED (governance state or bound to the digest):
- * metadata.version, metadata.maturity, metadata.lifecycle (publication marker; the effective lifecycle is the overlay),
- * attestations, security.approvals. Lifecycle overlays are separate files and are never part of any digest.
+ * Artifact digest = sha256(JCS(artifactProjection)). INCLUDED: apiVersion, kind (identity), metadata.id, metadata.registry,
+ * metadata.origin, spec (incl. runtime approval requirements), references, manifest provenance, security.classification,
+ * security.capabilities. EXCLUDED: metadata.version, metadata.maturity, metadata.lifecycle (publication marker; the effective
+ * lifecycle is the overlay), attestations, security.approvals (governance approvals), and every sidecar payload file.
  */
 export const EXCLUDED_FIELDS = ["metadata.version", "metadata.maturity", "metadata.lifecycle", "attestations", "security.approvals"];
+export function artifactProjection(a) {
+  return {
+    apiVersion: a.apiVersion, kind: a.kind,
+    metadata: { id: a.metadata.id, registry: a.metadata.registry, origin: a.metadata.origin },
+    spec: a.spec, references: a.references, provenance: a.provenance,
+    security: { classification: a.security.classification, capabilities: a.security.capabilities },
+  };
+}
 export const SEAL_FILE = "seal.yaml";
 export const ARTIFACT_FILE = "artifact.yaml";
 
@@ -34,33 +47,6 @@ export const readYaml = readYamlStrict; // fatal UTF-8, no BOM, strict numbers, 
 export const readJson = (p) => JSON.parse(readFileSync(p, "utf8"));
 export const sha256 = (buf) => "sha256:" + createHash("sha256").update(buf).digest("hex");
 export const toPosix = (p) => p.split(sep).join("/");
-
-/**
- * Canonical JSON policy (one policy for every digest in this registry): RFC 8785 (JCS) over the parsed value.
- * Object keys sorted by UTF-16 code units, no insignificant whitespace, ECMAScript number and string
- * serialization. Values that JCS cannot represent are REJECTED, not coerced: undefined, functions, NaN/Infinity,
- * lone surrogates, non-plain objects. Numbers are IEEE-754 doubles.
- */
-export function canonicalJson(v) {
-  if (v === null) return "null";
-  switch (typeof v) {
-    case "boolean": return v ? "true" : "false";
-    case "number":
-      if (!Number.isFinite(v)) throw new Error("canonicalJson: non-finite number");
-      return JSON.stringify(v);
-    case "string":
-      if (!isWellFormed(v)) throw new Error("canonicalJson: string contains a lone surrogate");
-      return JSON.stringify(v);
-    case "object": {
-      if (Array.isArray(v)) return "[" + v.map(canonicalJson).join(",") + "]";
-      const proto = Object.getPrototypeOf(v);
-      if (proto !== Object.prototype && proto !== null) throw new Error("canonicalJson: non-plain object");
-      return "{" + Object.keys(v).sort().map((k) => canonicalJson(k) + ":" + canonicalJson(v[k])).join(",") + "}";
-    }
-    default: throw new Error(`canonicalJson: unsupported type ${typeof v}`);
-  }
-}
-const isWellFormed = (s) => (typeof s.isWellFormed === "function" ? s.isWellFormed() : !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(s));
 
 /**
  * Portable code-point comparator (locale-independent) used for every ordering in indexes and listings.
@@ -94,42 +80,25 @@ export function resolveSchema(src, dir) {
   return p.endsWith(".json") ? readJson(p) : readYaml(p);
 }
 
-function stripPath(obj, path) {
-  const parts = path.split(".");
-  let cur = obj;
-  for (let i = 0; i < parts.length - 1; i++) { cur = cur?.[parts[i]]; if (!cur || typeof cur !== "object") return; }
-  delete cur[parts[parts.length - 1]];
-}
-
 /** Payload files (everything except artifact.yaml/seal.yaml) that pass the file policy, in code-point order. */
 export function payloadFiles(dir) {
   return scanVersionDir(dir).files.filter((f) => f !== ARTIFACT_FILE && f !== SEAL_FILE);
 }
 
 /**
- * Two digests (see docs/sealing-and-versioning.md):
- *  - artifactDigest: sha256(JCS(artifact minus EXCLUDED_FIELDS))  — the artifact-content scope;
- *  - digest (directory seal): sha256(JCS({artifact: artifactDigest, files})) where files maps every allowed payload
- *    file to sha256(raw bytes). `digest` is the addressing digest used by indexes, references, attestations,
- *    approvals and lifecycle events. Neither includes the version, so identical content has one digest.
+ * Digests (Protocol v0.2, `digestAlgorithm: zeptly-jcs-v1`; see docs/sealing-and-versioning.md):
+ *  - artifactDigest = sha256(JCS(artifactProjection))            — identity, origin, spec, references, provenance, classification, capabilities;
+ *  - sealDigest     = sha256(JCS({registry, id, version, payload[]})) — payload[] = every permitted payload file as {path, sha256},
+ *                     ordered by normalized POSIX path (code-point order), sha256 over the raw file bytes.
+ * `artifactDigest` is the pin used by references, index entries and attestation/approval `subjectDigest`; `sealDigest` covers the payload
+ * (prompts, contracts, evals) and the version. The artifact metadata file and seal.yaml are never payload.
  */
 export function computeSeal(artifact, dir) {
-  const body = JSON.parse(JSON.stringify(artifact));
-  for (const p of EXCLUDED_FIELDS) stripPath(body, p);
-  const files = {};
-  for (const f of payloadFiles(dir)) files[f] = sha256(readFileSync(join(dir, f)));
-  const artifactDigest = sha256(canonicalJson(body));
-  const digest = sha256(canonicalJson({ artifact: artifactDigest, files }));
-  return {
-    apiVersion: API_VERSION,
-    kind: "Seal",
-    subject: { registry: artifact.metadata.registry, id: artifact.metadata.id, version: artifact.metadata.version },
-    algorithm: "sha256",
-    digest,
-    artifactDigest,
-    excludedFields: [...EXCLUDED_FIELDS],
-    files,
-  };
+  const { registry, id, version } = artifact.metadata;
+  const payload = payloadFiles(dir).map((path) => ({ path, sha256: sha256(readFileSync(join(dir, path))) }));
+  const artifactDigest = sha256(Buffer.from(canonicalJson(artifactProjection(artifact)), "utf8"));
+  const sealDigest = sha256(Buffer.from(canonicalJson({ registry, id, version, payload }), "utf8"));
+  return { apiVersion: API_VERSION, kind: "Seal", digestAlgorithm: DIGEST_ALGORITHM, subject: { registry, id, version }, artifactDigest, sealDigest, payload };
 }
 
 /** Enumerate objects in one domain root: { tree, dir, idDir, verDir }. Never follows symlinks; records structural issues. */
@@ -160,17 +129,20 @@ export function listObjects(domainRoot, issues = []) {
   return out;
 }
 
-/** Read a YAML file without throwing: { value, error } with a controlled, file-labelled diagnostic. */
+/** Read a YAML file without throwing: { value, errors: Diag[] } with coded, file-labelled diagnostics. */
 export function tryReadYaml(path, label) {
-  if (!existsSync(path)) return { value: null, error: null, missing: true };
-  try { return { value: readYaml(path), error: null }; }
-  catch (e) { return { value: null, error: `${label}: ${e.message}` }; }
+  if (!existsSync(path)) return { value: null, errors: [], missing: true };
+  try { return { value: readYaml(path), errors: [] }; }
+  catch (e) {
+    const problems = e instanceof InputError ? e.problems : [{ code: "yaml-invalid", message: e.message }];
+    return { value: null, errors: problems.map((p) => new Diag(p.code, `${label}: ${p.message}`, { file: label, line: p.line, column: p.column })) };
+  }
 }
 
 export function loadObject(o) {
   const a = tryReadYaml(join(o.dir, ARTIFACT_FILE), ARTIFACT_FILE);
   const s = tryReadYaml(join(o.dir, SEAL_FILE), SEAL_FILE);
-  return { ...o, artifact: a.value, seal: s.value, loadErrors: [a.error, s.error].filter(Boolean) };
+  return { ...o, artifact: a.value, seal: s.value, loadErrors: [...a.errors, ...s.errors] };
 }
 
 export function loadOverlays(domainRoot) {
@@ -178,7 +150,7 @@ export function loadOverlays(domainRoot) {
   if (!existsSync(d)) return [];
   return readdirSync(d).filter((f) => f.endsWith(".yaml") && lstatSync(join(d, f)).isFile()).sort(compareCodePoints).map((f) => {
     const r = tryReadYaml(join(d, f), f);
-    return { file: join(d, f), name: f, overlay: r.value, loadError: r.error };
+    return { file: join(d, f), name: f, overlay: r.value, loadErrors: r.errors };
   });
 }
 

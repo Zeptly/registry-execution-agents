@@ -9,6 +9,7 @@
     "apiVersion",
     "kind",
     "id",
+    "version",
     "cases"
   ],
   "properties": {
@@ -66,6 +67,9 @@
           }
         }
       }
+    },
+    "version": {
+      "$ref": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json#/$defs/semver"
     }
   }
 }

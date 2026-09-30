@@ -1,20 +1,18 @@
 apiVersion: registry.zeptly.dev/v1alpha1
 kind: Seal
+digestAlgorithm: zeptly-jcs-v1
 subject:
   registry: execution-agents
   id: synthetic.weekly-metrics-digest
   version: 1.0.0
-algorithm: sha256
-digest: sha256:547cc41bf8b067d4000da2182099c65a6bf3fc66f7e144fc7e57297e1eb82741
-artifactDigest: sha256:2db4bfb629ebd59bae86a8ca17e49c6d7d811130f540dee3795f20402050c962
-excludedFields:
-  - metadata.version
-  - metadata.maturity
-  - metadata.lifecycle
-  - attestations
-  - security.approvals
-files:
-  contracts/input.schema.json: sha256:4e33f1c9db3778c17e17e1eeadf0429589a68747aa66ff4d1f02dede6f2d88b7
-  contracts/output.schema.json: sha256:6a0dfcf07377f2b74244f4855fde7d6a214ef2f69f2867e24b12bc45c61c8357
-  evals/golden-digest.yaml: sha256:7634801047f914281efb8aa3dbac5f0cafd930c5f064a37b8955b1c3565000ca
-  prompts/system.md: sha256:e95f6fe87ec48f2323f0c48653a368328a64545fce6188a9ac617b765d31530d
+artifactDigest: sha256:759bd5894fc4416d9bfd2b4947590fd095237a26f5d0f128ed02e80bdcb5ced7
+sealDigest: sha256:b26a3a1b64a233027c936ec3a143103f55cd0ba449e4bdd191e7b599527a7264
+payload:
+  - path: contracts/input.schema.json
+    sha256: sha256:4e33f1c9db3778c17e17e1eeadf0429589a68747aa66ff4d1f02dede6f2d88b7
+  - path: contracts/output.schema.json
+    sha256: sha256:6a0dfcf07377f2b74244f4855fde7d6a214ef2f69f2867e24b12bc45c61c8357
+  - path: evals/golden-digest.yaml
+    sha256: sha256:d7e4fd5383868648ca3d3481d7bd17a10a86a4c7c5b404304501b6f3d7fe9bab
+  - path: prompts/system.md
+    sha256: sha256:e95f6fe87ec48f2323f0c48653a368328a64545fce6188a9ac617b765d31530d

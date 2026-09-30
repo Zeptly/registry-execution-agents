@@ -30,12 +30,19 @@ export function compare(a, b) {
 
 export const isExact = (spec) => RE.test(spec);
 
+const invalidRange = (spec) => Object.assign(new Error(`invalid range '${spec}'`), { code: "invalid-range" });
+
+/**
+ * Range matching for exact versions and ^/~ ranges. A malformed range throws an Error with code 'invalid-range'.
+ * Protocol v0.2: a prerelease version resolves only when the requested range itself names a prerelease.
+ */
 export function satisfies(version, spec) {
+  if (typeof spec !== "string" || !/^[\^~]?\d/.test(spec)) throw invalidRange(spec);
+  let b, v;
+  try { b = parse(isExact(spec) ? spec : spec.slice(1)); v = parse(version); } catch { throw invalidRange(spec); }
   if (isExact(spec)) return compare(version, spec) === 0;
-  const base = spec.slice(1);
-  const b = parse(base);
-  if (compare(version, base) < 0) return false;
-  const v = parse(version);
+  if (v.pre.length && !b.pre.length) return false;
+  if (compare(version, spec.slice(1)) < 0) return false;
   if (spec[0] === "~") return v.major === b.major && v.minor === b.minor;
   if (b.major > 0) return v.major === b.major;
   if (b.minor > 0) return v.major === 0 && v.minor === b.minor;

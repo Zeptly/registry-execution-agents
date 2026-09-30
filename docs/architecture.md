@@ -19,7 +19,7 @@
 
 ## Identity and immutability
 
-An artifact version is a directory. Its **seal** (`seal.yaml`) records a content digest over the canonical artifact plus every payload file. From then on the object never changes: validation recomputes the seal, and `check-changes` compares against the base ref. Only governance state changes, and only append-only: attestations, approvals, lifecycle events; plus the one-way `candidate → canonical` maturity move, which keeps the digest.
+An artifact version is a directory. Its **seal** (`seal.yaml`) records an artifact digest (RFC 8785 JCS projection, `zeptly-jcs-v1`) and a directory seal over every payload file. From then on the object never changes: validation recomputes the seal, and `check-changes` compares against the base ref. Only governance state changes, and only append-only: attestations, approvals, lifecycle events; plus the one-way `candidate → canonical` maturity move, which keeps the digest.
 
 ## Two domains
 

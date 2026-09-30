@@ -1,6 +1,7 @@
 apiVersion: registry.zeptly.dev/v1alpha1
 kind: EvaluationSuite
 id: golden-clauses
+version: 1.0.0
 cases:
 - id: single-termination
   input:

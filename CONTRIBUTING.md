@@ -9,7 +9,7 @@
 
 - **Never edit a sealed version.** Create a new version directory, `seal` it, and attach attestations.
 - Attestations, approvals and lifecycle events are **append-only**.
-- New agents and evolutions enter as **candidates**; promotion uses `scripts/promote.mjs` and requires digest-bound evaluation and security-review attestations plus a governed approval.
+- New agents and evolutions enter as **candidates**; promotion uses `scripts/promote.mjs` and requires evaluation (explicit pass, suite identity and digest) and security-review attestations bound to both digests plus a governed approval.
 - Canonical artifacts pin references by exact version **and** digest. Executable local dependencies must be lifecycle-eligible (revoked never; deprecated only by exact pin).
 - Promotion needs an explicit passing evaluation `result` for every required suite; failed, missing and inconclusive results do not count. Recorded results are append-only history.
 - YAML must be UTF-8 without BOM; write integers beyond ±9007199254740991 as quoted strings; avoid case-colliding file names.

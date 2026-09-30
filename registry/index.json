@@ -3,5 +3,6 @@
   "kind": "RegistryIndex",
   "registry": "execution-agents",
   "domain": "production",
+  "digestAlgorithm": "zeptly-jcs-v1",
   "entries": []
 }

@@ -1,11 +1,12 @@
 # Lifecycle
 
-Lifecycle is an **append-only overlay**, independent of maturity and origin. `metadata.lifecycle` in the artifact is a publication marker (excluded from the digest) recording the state at publication (`active`); the effective state is the last overlay event for that exact `(id, version, digest)`, defaulting to `active`.
+Lifecycle is an **append-only overlay**, independent of maturity and origin. `metadata.lifecycle` in the artifact is a publication marker (excluded from the digest) recording the state at publication (`active`); the effective state is the last overlay event for that exact `(id, version, digest)` (the `artifactDigest`; overlays carry `digestAlgorithm: zeptly-jcs-v1`), defaulting to `active`.
 
 ```yaml
 # registry/lifecycle/support.ticket-triage.yaml
 apiVersion: registry.zeptly.dev/v1alpha1
 kind: LifecycleOverlay
+digestAlgorithm: zeptly-jcs-v1
 subject: { registry: execution-agents, id: support.ticket-triage }
 events:
   - { version: 1.0.0, digest: sha256:…, state: deprecated, at: "2026-10-01T00:00:00Z", actor: team:x, reason: superseded, supersededBy: {registry: execution-agents, id: support.ticket-triage, version: 1.1.0} }

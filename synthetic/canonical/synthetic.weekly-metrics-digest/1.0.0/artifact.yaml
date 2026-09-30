@@ -156,12 +156,14 @@ references:
     id: metrics-narration
     version: 1.0.0
     digest: sha256:dc6596b37b9e71a698b5040e18d135a3aa042efb164cba709ee906ab3c148aa7
+    digestAlgorithm: zeptly-jcs-v1
 provenance:
   createdAt: 2026-09-29 00:00:00+00:00
   authors:
     - github:zeptly-bootstrap
   sourceRefs: []
   transformations: []
+  synthetic: true
 security:
   classification: internal
   capabilities:
@@ -174,25 +176,25 @@ security:
   approvals:
     - type: promotion
       approver: team:registry-maintainers-placeholder
-      approvedAt: 2026-09-29T19:47:28.336Z
-      subjectDigest: sha256:547cc41bf8b067d4000da2182099c65a6bf3fc66f7e144fc7e57297e1eb82741
+      approvedAt: 2026-09-30T22:56:18.146Z
+      subjectDigest: sha256:759bd5894fc4416d9bfd2b4947590fd095237a26f5d0f128ed02e80bdcb5ced7
+      sealDigest: sha256:b26a3a1b64a233027c936ec3a143103f55cd0ba449e4bdd191e7b599527a7264
       ref: evidence://synthetic/approval/weekly-metrics-digest/1.0.0
 attestations:
   - type: evaluation
-    ref: evidence://synthetic/evaluation/weekly-metrics-digest/1.0.0/golden-digest
-    subjectDigest: sha256:547cc41bf8b067d4000da2182099c65a6bf3fc66f7e144fc7e57297e1eb82741
-    issuedAt: 2026-09-29T19:47:28.005Z
-    suite: golden-digest
+    ref: evidence://synthetic/evaluation/weekly-metrics-digest/1.0.0/golden-digest/result
+    subjectDigest: sha256:759bd5894fc4416d9bfd2b4947590fd095237a26f5d0f128ed02e80bdcb5ced7
+    sealDigest: sha256:b26a3a1b64a233027c936ec3a143103f55cd0ba449e4bdd191e7b599527a7264
+    issuedAt: 2026-09-30T22:56:17.842Z
+    suite:
+      id: golden-digest
+      version: 1.0.0
+      digest: sha256:d7e4fd5383868648ca3d3481d7bd17a10a86a4c7c5b404304501b6f3d7fe9bab
+    result: pass
     attestor: system:synthetic-eval-harness
   - type: security-review
     ref: evidence://synthetic/security-review/weekly-metrics-digest/1.0.0
-    subjectDigest: sha256:547cc41bf8b067d4000da2182099c65a6bf3fc66f7e144fc7e57297e1eb82741
-    issuedAt: 2026-09-29T19:47:28.160Z
+    subjectDigest: sha256:759bd5894fc4416d9bfd2b4947590fd095237a26f5d0f128ed02e80bdcb5ced7
+    sealDigest: sha256:b26a3a1b64a233027c936ec3a143103f55cd0ba449e4bdd191e7b599527a7264
+    issuedAt: 2026-09-30T22:56:18.007Z
     attestor: team:security-placeholder
-  - type: evaluation
-    ref: evidence://synthetic/evaluation/weekly-metrics-digest/1.0.0/golden-digest/result
-    subjectDigest: sha256:547cc41bf8b067d4000da2182099c65a6bf3fc66f7e144fc7e57297e1eb82741
-    issuedAt: 2026-09-30T22:20:05.265Z
-    suite: golden-digest
-    result: pass
-    attestor: system:synthetic-eval-harness

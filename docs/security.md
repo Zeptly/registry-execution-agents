@@ -5,9 +5,9 @@
 | Silent change to a published definition | Seals, immutability checks vs base, append-only attestations/overlays, PR review |
 | Runtime or compiler alters declared classification | Classification is inside the digest; canonical artifacts carry a digest-bound security review |
 | Self-improving agent widens its own privileges | Candidates are separate sealed objects; promotion needs digest-bound evaluation, security review and governed approval |
-| Stale/misapplied assurance | Attestations/approvals fail validation when `subjectDigest` ≠ current digest |
+| Stale/misapplied assurance | Attestations/approvals fail validation when `subjectDigest`/`sealDigest` ≠ the current digests |
 | Secrets/endpoints in Git | Validators scan the artifact **and every sidecar payload file** for endpoints (URL schemes, `host:port`) and credential patterns; only JSON Schema meta-schema ids under `$schema` are exempt; artifacts carry secret **names** only |
-| Precision-losing numbers or unreadable input silently changing a digest | Strict YAML reader: fatal UTF-8, no BOM, duplicate keys rejected, unsafe integer literals rejected; case-colliding paths rejected |
+| Precision-losing numbers or unreadable input silently changing a digest | Strict JSON-compatible YAML reader: fatal UTF-8, no BOM/NUL, duplicate keys, anchors, aliases, merge keys and unsafe integer literals rejected; case-colliding paths rejected |
 | Raw runtime records (tapes, traces, transcripts) or oversized/odd files smuggled into a version | Strict file allow-list, size limits, no symlinks, LF/UTF-8 only, runtime-record name and content detection ([sealing-and-versioning](sealing-and-versioning.md#file-policy)) |
 | Sensitive execution data in Git | Evidence by pointer only; `redactInEvidence` required for confidential/restricted and PII |
 | Synthetic content passed off as production | Isolated tree + `synthetic.` namespace; production index/checks reject it |

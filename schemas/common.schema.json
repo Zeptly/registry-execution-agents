@@ -3,14 +3,44 @@
   "$id": "https://schemas.zeptly.dev/registry/v1alpha1/common.schema.json",
   "title": "Zeptly Registry Protocol v0.1 — common definitions",
   "$defs": {
-    "id": { "type": "string", "maxLength": 96, "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*(\\.[a-z][a-z0-9]*(-[a-z0-9]+)*)*$" },
-    "label": { "type": "string", "pattern": "^[a-z][a-z0-9]*([_-][a-z0-9]+)*$" },
-    "semver": { "type": "string", "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[0-9A-Za-z]+(\\.[0-9A-Za-z]+)*)?$" },
-    "versionSpec": { "type": "string", "description": "Exact SemVer or a ^/~ range.", "pattern": "^[\\^~]?(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[0-9A-Za-z]+(\\.[0-9A-Za-z]+)*)?$" },
-    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
-    "principal": { "type": "string", "pattern": "^(github|team|agent|system):[A-Za-z0-9._-]+$" },
-    "registryLabel": { "type": "string", "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" },
-    "knownRegistry": { "enum": ["skills", "tiny-agents", "execution-agents", "qb-agents"] },
+    "id": {
+      "type": "string",
+      "maxLength": 96,
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*(\\.[a-z][a-z0-9]*(-[a-z0-9]+)*)*$"
+    },
+    "label": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*([_-][a-z0-9]+)*$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[0-9A-Za-z]+(\\.[0-9A-Za-z]+)*)?$"
+    },
+    "versionSpec": {
+      "type": "string",
+      "description": "Exact SemVer or a ^/~ range.",
+      "pattern": "^[\\^~]?(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[0-9A-Za-z]+(\\.[0-9A-Za-z]+)*)?$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "principal": {
+      "type": "string",
+      "pattern": "^(github|team|agent|system):[A-Za-z0-9._-]+$"
+    },
+    "registryLabel": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "knownRegistry": {
+      "enum": [
+        "skills",
+        "tiny-agents",
+        "execution-agents",
+        "qb-agents"
+      ]
+    },
     "evidencePointer": {
       "type": "string",
       "description": "Opaque pointer to evidence held outside registry Git. Ownership/schema of the Evidence Protocol is deferred.",
@@ -20,48 +50,164 @@
       "type": "object",
       "description": "Structured cross-registry reference {registry, id, version, digest?}.",
       "additionalProperties": false,
-      "required": ["registry", "id", "version"],
+      "required": [
+        "registry",
+        "id",
+        "version"
+      ],
       "properties": {
-        "registry": { "$ref": "#/$defs/knownRegistry" },
-        "id": { "$ref": "#/$defs/id" },
-        "version": { "$ref": "#/$defs/versionSpec" },
-        "digest": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] }
-      }
+        "registry": {
+          "$ref": "#/$defs/knownRegistry"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "version": {
+          "$ref": "#/$defs/versionSpec"
+        },
+        "digest": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/digest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "digestAlgorithm": {
+          "$ref": "#/$defs/digestAlgorithm"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "digest": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "digest"
+            ]
+          },
+          "then": {
+            "required": [
+              "digestAlgorithm"
+            ]
+          }
+        }
+      ]
     },
     "platformReference": {
       "type": "object",
       "description": "Structured reference to a platform contract (tool, capability, model, secret). The registry label is opaque here: namespace ownership is a deferred platform decision, so only structure is validated.",
       "additionalProperties": false,
-      "required": ["registry", "id"],
+      "required": [
+        "registry",
+        "id"
+      ],
       "properties": {
-        "registry": { "$ref": "#/$defs/registryLabel" },
-        "id": { "$ref": "#/$defs/id" },
-        "version": { "$ref": "#/$defs/versionSpec" },
-        "digest": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] }
-      }
+        "registry": {
+          "$ref": "#/$defs/registryLabel"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "version": {
+          "$ref": "#/$defs/versionSpec"
+        },
+        "digest": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/digest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "digestAlgorithm": {
+          "$ref": "#/$defs/digestAlgorithm"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "digest": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "digest"
+            ]
+          },
+          "then": {
+            "required": [
+              "digestAlgorithm"
+            ]
+          }
+        }
+      ]
     },
     "sourceRef": {
       "oneOf": [
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["registry", "id", "version", "digest"],
+          "required": [
+            "registry",
+            "id",
+            "version",
+            "digest",
+            "digestAlgorithm"
+          ],
           "properties": {
-            "registry": { "$ref": "#/$defs/knownRegistry" },
-            "id": { "$ref": "#/$defs/id" },
-            "version": { "$ref": "#/$defs/semver" },
-            "digest": { "$ref": "#/$defs/digest" }
+            "registry": {
+              "$ref": "#/$defs/knownRegistry"
+            },
+            "id": {
+              "$ref": "#/$defs/id"
+            },
+            "version": {
+              "$ref": "#/$defs/semver"
+            },
+            "digest": {
+              "$ref": "#/$defs/digest"
+            },
+            "digestAlgorithm": {
+              "$ref": "#/$defs/digestAlgorithm"
+            }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["evidence", "role", "summary"],
+          "required": [
+            "evidence",
+            "role",
+            "summary"
+          ],
           "properties": {
-            "evidence": { "$ref": "#/$defs/evidencePointer" },
-            "digest": { "$ref": "#/$defs/digest" },
-            "role": { "enum": ["motivates", "supports", "baseline", "regression"] },
-            "summary": { "type": "string", "minLength": 5 }
+            "evidence": {
+              "$ref": "#/$defs/evidencePointer"
+            },
+            "digest": {
+              "$ref": "#/$defs/digest"
+            },
+            "role": {
+              "enum": [
+                "motivates",
+                "supports",
+                "baseline",
+                "regression"
+              ]
+            },
+            "summary": {
+              "type": "string",
+              "minLength": 5
+            }
           }
         }
       ]
@@ -69,53 +215,162 @@
     "origin": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "properties": {
-        "type": { "enum": ["native", "upstream-seed", "evolved"] },
+        "type": {
+          "enum": [
+            "native",
+            "upstream-seed",
+            "discovered",
+            "refined",
+            "evolved"
+          ]
+        },
         "evolution": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind", "sourceRefs", "rationale", "proposer"],
+          "required": [
+            "kind",
+            "sourceRefs",
+            "rationale",
+            "proposer"
+          ],
           "properties": {
-            "kind": { "$ref": "#/$defs/label" },
-            "sourceRefs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/sourceRef" } },
-            "rationale": { "type": "string", "minLength": 10 },
-            "proposer": { "$ref": "#/$defs/principal" },
-            "expectedEffect": { "type": "string" }
+            "kind": {
+              "enum": [
+                "discovered",
+                "refined",
+                "generalised"
+              ]
+            },
+            "sourceRefs": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/sourceRef"
+              }
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 10
+            },
+            "proposer": {
+              "$ref": "#/$defs/principal"
+            },
+            "expectedEffect": {
+              "type": "string"
+            }
           }
         },
         "import": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["source"],
-          "properties": { "source": { "type": "string", "minLength": 3 }, "license": { "type": "string" } }
+          "required": [
+            "source"
+          ],
+          "properties": {
+            "source": {
+              "type": "string",
+              "minLength": 3
+            },
+            "license": {
+              "type": "string"
+            }
+          }
         }
       },
       "allOf": [
-        { "if": { "properties": { "type": { "const": "evolved" } }, "required": ["type"] }, "then": { "required": ["evolution"] } },
-        { "if": { "properties": { "type": { "const": "upstream-seed" } }, "required": ["type"] }, "then": { "required": ["import"] } }
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "evolved"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "evolution"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "upstream-seed"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "import"
+            ]
+          }
+        }
       ]
     },
     "provenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["createdAt", "authors", "sourceRefs", "transformations"],
+      "required": [
+        "createdAt",
+        "authors",
+        "sourceRefs",
+        "transformations"
+      ],
       "properties": {
-        "createdAt": { "type": "string", "format": "date-time" },
-        "authors": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/principal" } },
-        "sourceRefs": { "type": "array", "items": { "$ref": "#/$defs/sourceRef" } },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "authors": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/principal"
+          }
+        },
+        "sourceRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          }
+        },
         "transformations": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["type", "description"],
+            "required": [
+              "type",
+              "description"
+            ],
             "properties": {
-              "type": { "$ref": "#/$defs/label" },
-              "description": { "type": "string", "minLength": 3 },
-              "actor": { "$ref": "#/$defs/principal" }
+              "type": {
+                "$ref": "#/$defs/label"
+              },
+              "description": {
+                "type": "string",
+                "minLength": 3
+              },
+              "actor": {
+                "$ref": "#/$defs/principal"
+              }
             }
           }
+        },
+        "synthetic": {
+          "const": true,
+          "description": "Explicit synthetic marker. Required in the synthetic domain, forbidden in production."
         }
       }
     },
@@ -123,44 +378,192 @@
       "type": "object",
       "description": "Governed approval bound to the exact subject digest.",
       "additionalProperties": false,
-      "required": ["type", "approver", "approvedAt", "subjectDigest"],
+      "required": [
+        "type",
+        "approver",
+        "approvedAt",
+        "subjectDigest",
+        "sealDigest"
+      ],
       "properties": {
-        "type": { "enum": ["security-review", "promotion"] },
-        "approver": { "$ref": "#/$defs/principal" },
-        "approvedAt": { "type": "string", "format": "date-time" },
-        "subjectDigest": { "$ref": "#/$defs/digest" },
-        "ref": { "$ref": "#/$defs/evidencePointer" }
+        "type": {
+          "enum": [
+            "security-review",
+            "promotion"
+          ]
+        },
+        "approver": {
+          "$ref": "#/$defs/principal"
+        },
+        "approvedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "subjectDigest": {
+          "$ref": "#/$defs/digest",
+          "description": "artifactDigest of the approved artifact"
+        },
+        "ref": {
+          "$ref": "#/$defs/evidencePointer"
+        },
+        "sealDigest": {
+          "$ref": "#/$defs/digest"
+        }
       }
     },
     "security": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["classification", "capabilities", "approvals"],
+      "required": [
+        "classification",
+        "capabilities",
+        "approvals"
+      ],
       "properties": {
-        "classification": { "enum": ["public", "internal", "confidential", "restricted"] },
-        "capabilities": { "type": "array", "items": { "$ref": "#/$defs/platformReference" } },
-        "approvals": { "type": "array", "items": { "$ref": "#/$defs/approval" } }
+        "classification": {
+          "enum": [
+            "public",
+            "internal",
+            "confidential",
+            "restricted"
+          ]
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/platformReference"
+          }
+        },
+        "approvals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/approval"
+          }
+        }
       }
     },
     "attestation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "ref", "subjectDigest"],
+      "required": [
+        "type",
+        "ref",
+        "subjectDigest",
+        "sealDigest"
+      ],
       "properties": {
-        "type": { "enum": ["evaluation", "security-review", "provenance"] },
-        "ref": { "$ref": "#/$defs/evidencePointer" },
-        "subjectDigest": { "$ref": "#/$defs/digest" },
-        "suite": { "$ref": "#/$defs/label" },
-        "result": { "enum": ["pass", "fail", "inconclusive"], "description": "Explicit outcome. Only meaningful for type 'evaluation'; promotion requires an explicit 'pass' for every required suite." },
-        "issuedAt": { "type": "string", "format": "date-time" },
-        "attestor": { "$ref": "#/$defs/principal" }
-      }
+        "type": {
+          "enum": [
+            "evaluation",
+            "security-review",
+            "provenance"
+          ]
+        },
+        "ref": {
+          "$ref": "#/$defs/evidencePointer"
+        },
+        "subjectDigest": {
+          "$ref": "#/$defs/digest",
+          "description": "artifactDigest of the assessed artifact"
+        },
+        "sealDigest": {
+          "$ref": "#/$defs/digest",
+          "description": "Registry-local: directory seal of the assessed version (payload is outside the artifact digest, so evaluations and reviews also bind to it)."
+        },
+        "suite": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "version",
+            "digest"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/label"
+            },
+            "version": {
+              "$ref": "#/$defs/semver"
+            },
+            "digest": {
+              "$ref": "#/$defs/digest"
+            }
+          }
+        },
+        "result": {
+          "enum": [
+            "pass",
+            "fail",
+            "inconclusive"
+          ]
+        },
+        "issuedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "attestor": {
+          "$ref": "#/$defs/principal"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "evaluation"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "suite",
+              "result"
+            ]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "suite"
+                  ]
+                },
+                {
+                  "required": [
+                    "result"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
     },
     "subject": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["registry", "id"],
-      "properties": { "registry": { "$ref": "#/$defs/registryLabel" }, "id": { "$ref": "#/$defs/id" }, "version": { "$ref": "#/$defs/semver" } }
+      "required": [
+        "registry",
+        "id"
+      ],
+      "properties": {
+        "registry": {
+          "$ref": "#/$defs/registryLabel"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "version": {
+          "$ref": "#/$defs/semver"
+        }
+      }
+    },
+    "digestAlgorithm": {
+      "const": "zeptly-jcs-v1",
+      "description": "Versioned hash contract (Protocol v0.2). Changing the contract requires a new identifier and new vectors."
     }
   }
 }

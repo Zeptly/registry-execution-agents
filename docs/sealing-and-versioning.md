@@ -1,52 +1,53 @@
 # Sealing and versioning
 
-## Two digests
+## Two digests (Protocol v0.2, `digestAlgorithm: zeptly-jcs-v1`)
 
-`seal.yaml` (written by `scripts/seal.mjs`) records both:
+`seal.yaml` (written by `scripts/seal.mjs`) records:
 
 ```yaml
-digest: sha256:…          # directory seal = the ADDRESSING digest (indexes, references, attestations, approvals, lifecycle events)
-artifactDigest: sha256:…  # artifact-content scope only
-excludedFields: [metadata.version, metadata.maturity, metadata.lifecycle, attestations, security.approvals]
-files: { prompts/system.md: sha256:…, … }   # every allowed payload file, hashed over raw bytes
+apiVersion: registry.zeptly.dev/v1alpha1
+kind: Seal
+digestAlgorithm: zeptly-jcs-v1
+subject: { registry: execution-agents, id: …, version: … }
+artifactDigest: sha256:…   # sha256(JCS(artifact projection))
+sealDigest: sha256:…       # sha256(JCS({registry, id, version, payload}))
+payload:                   # every permitted payload file, ordered by normalized POSIX path
+  - { path: prompts/system.md, sha256: sha256:… }
 ```
 
-- `artifactDigest = sha256(JCS(artifact minus excludedFields))`
-- `digest = sha256(JCS({artifact: artifactDigest, files}))`
+- `artifactDigest = sha256(JCS(projection))`, projection = `apiVersion`, `kind`, `metadata.{id,registry,origin}`, `spec`, `references`, `provenance`, `security.{classification,capabilities}`. Built by whitelist (`artifactProjection`, `scripts/lib/core.mjs`), so new fields are excluded until deliberately added.
+- `sealDigest = sha256(JCS({registry, id, version, payload}))`; `payload[]` is ordered by normalized POSIX path (code-point order) and hashes raw bytes.
+- Digest pins in references, locks' `subject.digest`, attestation/approval `subjectDigest` all mean the **artifactDigest**. Because payload files are outside the artifact digest, attestations and approvals also carry the registry-local `sealDigest` so they go stale when payload changes.
+- The version is not part of the artifact digest: identical content has one artifact digest.
 
-The version is not part of either digest: identical content has one digest, and a reference is always `version + digest`.
-
-| Field/category | `artifactDigest` | `digest` (directory seal) | Reason |
+| Field/category | `artifactDigest` | `sealDigest` | Reason |
 |---|---:|---:|---|
-| `apiVersion`, `kind`, `metadata.id`, `metadata.registry` | ✓ | ✓ | Identity |
-| `metadata.origin` | ✓ | ✓ | How the content came to be (lineage) |
-| `spec` | ✓ | ✓ | Durable content |
-| `references` | ✓ | ✓ | Dependencies |
-| `provenance` | ✓ | ✓ | Content history |
-| `security.classification`, `security.capabilities` | ✓ | ✓ | Must not change after sealing |
-| Payload files (`prompts/`, `contracts/`, `evals/`) | ✗ | ✓ | Canonical payload, covered by the directory seal |
-| `metadata.version` | ✗ | ✗ | Address, not content (directory name and `seal.subject`) |
-| `metadata.maturity` | ✗ | ✗ | Governance state; promotion moves the object |
-| `metadata.lifecycle` | ✗ | ✗ | Publication marker; the effective state is the overlay |
-| Lifecycle overlays | ✗ | ✗ | Separate append-only files |
-| `attestations`, `security.approvals` | ✗ | ✗ | They bind to the digest |
-| `artifact.yaml` formatting, `seal.yaml` | ✗ | ✗ | Digest is over parsed canonical JSON; seal is circular |
+| `apiVersion`, `kind`, `metadata.id`, `metadata.registry` | ✓ | id/registry only | Identity |
+| `metadata.origin` | ✓ | ✗ | Lineage |
+| `spec` (including runtime approval requirements) | ✓ | ✗ | Durable content |
+| `references`, `provenance` | ✓ | ✗ | Dependencies, content history |
+| `security.classification`, `security.capabilities` | ✓ | ✗ | Must not change after sealing |
+| Payload files (`prompts/`, `contracts/`, `evals/`) | ✗ | ✓ | Covered by the directory seal |
+| `metadata.version` | ✗ | ✓ (as `version`) | Address, not artifact content |
+| `metadata.maturity`, `metadata.lifecycle` | ✗ | ✗ | Governance state; promotion moves the object |
+| Lifecycle overlays, `attestations`, `security.approvals` | ✗ | ✗ | Mutable/append-only governance records |
+| `artifact.yaml` formatting, `seal.yaml` | ✗ | ✗ | Digests are over parsed JSON; seal is circular |
 
-Registry-local interpretation: `metadata.origin` is treated as provenance (included) and `metadata.lifecycle` as a governance marker (excluded).
+Registry-local interpretations: `metadata.origin` is included; `metadata.lifecycle` must be `active` and is a publication marker excluded from the digest; evaluation suite digest = sha256 of the suite file bytes.
 
-## Canonical JSON policy
+## Canonical JSON (RFC 8785 JCS)
 
-One policy for every digest: **RFC 8785 (JCS)** over the parsed value (`canonicalJson`, `scripts/lib/core.mjs`): keys sorted by UTF-16 code units, no whitespace, ECMAScript number/string serialization, numbers are IEEE-754 doubles. Values JCS cannot represent (`undefined`, functions, NaN/Infinity, lone surrogates, non-plain objects) are **rejected**. Because the digest is over the parsed value, YAML formatting, comments and key order never matter.
+One policy for every digest: **RFC 8785 JCS** via the reference `canonicalize` package (`scripts/lib/jcs.mjs`), wrapped by an input check that rejects `undefined`, functions, symbols, BigInt, NaN/Infinity, lone surrogates and non-plain objects. Keys sort by UTF-16 code units, arrays keep order, numbers use ECMAScript serialization, **no Unicode normalization** is applied and strings are not line-ending-normalized after parsing.
 
-Golden vectors (`test/registry.test.mjs`): the RFC 8785 key-ordering and number examples, and a fixed artifact whose `artifactDigest` and `digest` were computed independently (Python) and are pinned in the test.
+Shared-format vectors live in `test/vectors/` (`parser.json`, `canonicalization.json`, `digest.json`), generated by an independent Python script (`generate_vectors.py`) and run by `test/vectors.test.mjs`. They are registry-local until the shared protocol vectors are supplied; `test/independent.test.mjs` recomputes all committed seals and indexes with a test-only JCS implementation.
 
-## YAML input and numbers
+## YAML input (JSON-compatible subset)
 
-Every YAML file the registry reads (`artifact.yaml`, `seal.yaml`, lifecycle overlays, YAML payload files) goes through one parser (`scripts/lib/yaml.mjs`): YAML 1.2 core schema, **single document, duplicate keys rejected**, and **integer-valued numbers outside the safe integer range (±9007199254740991) are rejected at the source literal**, before a double could round them. This covers every spelling of the literal: `9007199254740993`, `12345678901234567890`, `9007199254740993.0`, `9007199254740993e0`, `90071992547409930e-1`, `1e16`, `1e21`, hex/octal forms. Quote such values as strings. Fractional values (`0.05`, `333333333.33333329`, `123456789012345678e-2`) and safe integers behave as before; an integer `-0` parses as `0` (both canonicalize to `0`). Numbers inside JSON payload files are not digest inputs (the files are hashed as raw bytes).
+Every YAML file read (`artifact.yaml`, `seal.yaml`, lifecycle overlays, YAML payloads) goes through `parseYamlStrict` (`scripts/lib/yaml.mjs`): YAML 1.2 core schema; single document; string keys only; duplicate keys, anchors, aliases, merge keys and non-core tags rejected; `yes/no/on/off` remain strings; numbers must match the JSON number grammar (no hex/octal/`+`/leading zero/leading dot), be finite, and integer-valued literals must fit ±(2^53−1) — checked on the source literal (`9007199254740993`, `…0`, `1e21`). Invalid UTF-8, BOM, NUL and lone surrogates are rejected. Timestamps stay strings. Problems carry a file/path and a machine-readable code ([diagnostics](diagnostics.md)); malformed input exits `2`.
 
 ## Line endings and text
 
-Payload bytes are hashed as-is. Files must therefore be **UTF-8 without BOM, LF-only, no NUL**; the validator rejects CR, BOM, NUL and invalid UTF-8 in every version-directory file. `.gitattributes` forces `eol=lf` so Git checkouts cannot alter bytes. The same UTF-8 policy (**fatal decoding, no BOM**) applies to `artifact.yaml`, `seal.yaml` and lifecycle overlays, which are read through the strict reader; violations are reported as `<file>: not valid UTF-8` / `<file>: UTF-8 BOM not allowed` and never crash validation or index building.
+Payload bytes are hashed as-is. Files must be **UTF-8 without BOM, LF-only, no NUL**; CR, BOM, NUL and invalid UTF-8 are rejected in every version-directory file (`line-ending-cr`, `utf8-bom`, `nul-byte`, `utf8-invalid`). `.gitattributes` forces `eol=lf`.
 
 ## File policy
 
@@ -66,8 +67,8 @@ Everything else is rejected. **Case-colliding paths** (two files or directories 
 - A version directory is never edited after sealing. Fix forward with a new version.
 - Canonical versions use SemVer; a version is unique per identity.
 - A candidate's version must exceed **every** canonical version of the same id (candidates of one id use distinct versions).
-- `check-changes` rejects digest changes, deletion, domain moves, reversion to candidate and non-append-only edits to attestations, approvals and overlays.
-- Indexes order entries by code-point `id`, then SemVer, then code-point `digest`, using a locale-independent comparator (`compareCodePoints`), and contain no timestamps or commit ids.
+- `check-changes` rejects artifact or seal digest changes, deletion, domain moves, reversion to candidate and non-append-only edits to attestations, approvals and overlays.
+- Indexes order entries by code-point `id`, then SemVer, then code-point `artifactDigest` and `sealDigest`, using a locale-independent comparator (`compareCodePoints`), and contain no timestamps or commit ids.
 
 ## Suggested bump semantics (reviewer-enforced)
 

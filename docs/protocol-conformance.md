@@ -1,6 +1,6 @@
-# Protocol v0.1 conformance
+# Protocol v0.1 / v0.2 conformance
 
-This registry implements the approved **Zeptly Registry Protocol v0.1**. Nothing here was inferred from sibling repositories.
+This registry implements the approved **Zeptly Registry Protocol v0.1** and the draft **v0.2 amendment**. Nothing here was inferred from sibling repositories.
 
 | Normative rule | Implementation |
 |---|---|
@@ -40,7 +40,7 @@ Durable task contracts, retry, timeout, checkpoint, state and execution policies
 
 | Item | State |
 |---|---|
-| `origin.type` | `native`, `upstream-seed`, `evolved` (was `authored`/`imported`) |
+| `origin.type` | `native`, `upstream-seed`, `discovered`, `refined`, `evolved` (v0.2) |
 | Evolution kind | Only at `metadata.origin.evolution.kind` |
 | Digest scope | Identity, origin, `spec`, references, provenance, classification, capabilities; version, maturity, lifecycle marker, overlays, attestations and approvals excluded; separate directory seal for payload files |
 | Canonical JSON | RFC 8785 (JCS), golden-vector tested |
@@ -59,3 +59,21 @@ Durable task contracts, retry, timeout, checkpoint, state and execution policies
 | Numbers | integer-valued literals outside the safe range rejected at the source |
 | Paths | case-colliding names rejected |
 | Regression coverage | independent seal/golden recomputation (third-party RFC 8785 implementation) against populated fixtures, with modification and deletion cases |
+
+## Protocol v0.2 amendment
+
+| § | Item | State |
+|---|---|---|
+| 2 | JSON-compatible YAML subset | `parseYamlStrict`; vectors in `test/vectors/parser.json` |
+| 3 | RFC 8785 JCS, no normalization | `canonicalize` reference implementation + input check; `canonicalization.json` |
+| 4 | `digestAlgorithm: zeptly-jcs-v1`; artifact digest; directory seal (`payload[]`) | `computeSeal`; seal/index/overlay/reference carry the identifier |
+| 5 | Golden vectors | Registry-local vectors from an independent Python generator; **shared protocol vectors not yet supplied** |
+| 6 | Reference and lock vocabulary | Validated locally; prerelease and `invalid-range` rules; **no resolver or lock generation** (runtime-owned) |
+| 7 | Evaluation/approval records | `suite {id,version,digest}`, `result`, `subjectDigest` (+ registry-local `sealDigest`) |
+| 8 | Index contract | `schemas/index.schema.json`; domain, digests, algorithm, code-point ordering |
+| 9 | Diagnostics and exit codes | [diagnostics](diagnostics.md); `0/1/2`, `--json` |
+| 10 | Synthetic isolation | `synthetic/` domain, `synthetic.` ids, `provenance.synthetic: true`, `evidence://synthetic/` |
+| 11 | Unpublished ledger regeneration | Synthetic fixtures re-sealed on this draft branch |
+| 13 | Adoption test | items 2–4 and 6 done; item 1 pending shared vectors; item 5 (peer-index fixtures) is runtime-owned and not done |
+
+Deferred (§12) and unchanged: Evidence Protocol, capability/gateway/model namespaces, signatures and reviewer authority, peer-index distribution, workspace overrides, traffic channels, nested QB execution, runtime-trigger contract versioning, transitive resolution and cycle handling.

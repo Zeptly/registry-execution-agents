@@ -93,12 +93,14 @@ references:
     id: clause-extraction
     version: ^0.1.0
     digest: sha256:e690f658fbe61a6a24b88ff65f74cf55f43ce4f653a455988421902d0bbbdb28
+    digestAlgorithm: zeptly-jcs-v1
 provenance:
   createdAt: 2026-09-29 00:00:00+00:00
   authors:
     - github:zeptly-bootstrap
   sourceRefs: []
   transformations: []
+  synthetic: true
 security:
   classification: restricted
   capabilities: []
@@ -106,15 +108,23 @@ security:
 attestations:
   - type: evaluation
     ref: evidence://synthetic/evaluation/contract-clause-extractor/0.1.0/golden-clauses/run-1-timeout
-    subjectDigest: sha256:466cf6a507ffdc8f351a9f3acabfc7a77cc1614f285cb72ab3ec7870242aef77
-    issuedAt: 2026-09-30T22:20:05.533Z
-    suite: golden-clauses
+    subjectDigest: sha256:7ace6196eb8d465e1f5f723893939008a4986e69daa0d3c3acdaa60c3f55dc1c
+    sealDigest: sha256:7bc9c1d1fc8bdbab10368c6ee6b647eb6d50f262f2e66a9e304b98eff974177f
+    issuedAt: 2026-09-30T22:56:19.126Z
+    suite:
+      id: golden-clauses
+      version: 1.0.0
+      digest: sha256:bc6a8e74c4d697aa4098dbfab3f52afb5817ce0524a020adff1a374b4aef8833
     result: inconclusive
     attestor: system:synthetic-eval-harness
   - type: evaluation
     ref: evidence://synthetic/evaluation/contract-clause-extractor/0.1.0/golden-clauses/run-2
-    subjectDigest: sha256:466cf6a507ffdc8f351a9f3acabfc7a77cc1614f285cb72ab3ec7870242aef77
-    issuedAt: 2026-09-30T22:20:05.664Z
-    suite: golden-clauses
+    subjectDigest: sha256:7ace6196eb8d465e1f5f723893939008a4986e69daa0d3c3acdaa60c3f55dc1c
+    sealDigest: sha256:7bc9c1d1fc8bdbab10368c6ee6b647eb6d50f262f2e66a9e304b98eff974177f
+    issuedAt: 2026-09-30T22:56:19.276Z
+    suite:
+      id: golden-clauses
+      version: 1.0.0
+      digest: sha256:bc6a8e74c4d697aa4098dbfab3f52afb5817ce0524a020adff1a374b4aef8833
     result: fail
     attestor: system:synthetic-eval-harness
